@@ -17,10 +17,17 @@ interface DraggableBoxProps extends BoxGeometry {
   scale: number;
   selected: boolean;
   onSelect: () => void;
-  onChange: (geometry: BoxGeometry) => void;
+  /** `mode` lets the parent apply alignment snapping to moves but not resizes. */
+  onChange: (geometry: BoxGeometry, mode: 'move' | 'resize') => void;
+  /** Fires when a drag or resize finishes, so guides can be cleared. */
+  onGestureEnd?: () => void;
   onDelete: () => void;
   /** Signature images keep their proportions while being resized. */
   lockAspect?: boolean;
+  /** Double-click or Enter/F2 — used to start editing a text box in place. */
+  onActivate?: () => void;
+  /** While true the frame stops dragging so the content can take the pointer. */
+  isEditing?: boolean;
   label: string;
   children: ReactNode;
 }
@@ -47,12 +54,16 @@ export function DraggableBox({
   selected,
   onSelect,
   onChange,
+  onGestureEnd,
   onDelete,
   lockAspect = false,
+  onActivate,
+  isEditing = false,
   label,
   children,
 }: DraggableBoxProps) {
   const t = useTranslations('editor');
+  const frameRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<{
     mode: 'move' | 'resize';
     startX: number;
@@ -72,9 +83,16 @@ export function DraggableBox({
     event: React.PointerEvent,
     mode: 'move' | 'resize',
   ) => {
+    if (isEditing) return;
+
     event.stopPropagation();
     event.preventDefault();
     onSelect();
+
+    // preventDefault above suppresses the focus a pointerdown would normally
+    // give this element — without restoring it by hand the frame never becomes
+    // the keyboard target, and Delete silently does nothing.
+    frameRef.current?.focus();
 
     (event.target as Element).setPointerCapture(event.pointerId);
     gesture.current = {
@@ -99,6 +117,7 @@ export function DraggableBox({
           x: active.origin.x + dxPt,
           y: active.origin.y - dyPt,
         }),
+        'move',
       );
       return;
     }
@@ -124,10 +143,12 @@ export function DraggableBox({
         width: nextWidth,
         height: nextHeight,
       }),
+      'resize',
     );
   };
 
   const endGesture = () => {
+    if (gesture.current) onGestureEnd?.();
     gesture.current = null;
   };
 
@@ -146,19 +167,32 @@ export function DraggableBox({
       return;
     }
 
+    if (event.key === 'Enter' || event.key === 'F2') {
+      event.preventDefault();
+      onActivate?.();
+      return;
+    }
+
     const move = moves[event.key];
     if (!move) return;
 
     event.preventDefault();
-    onChange(clamp({ x: x + move[0], y: y + move[1], width, height }));
+    // Keyboard nudges bypass snapping on purpose: they are the tool you reach
+    // for when snapping put something *almost* where you wanted it.
+    onChange(clamp({ x: x + move[0], y: y + move[1], width, height }), 'resize');
   };
 
   return (
     <div
+      ref={frameRef}
       role="group"
       aria-label={label}
       tabIndex={0}
       onFocus={onSelect}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        onActivate?.();
+      }}
       onKeyDown={onKeyDown}
       onPointerDown={(event) => startGesture(event, 'move')}
       onPointerMove={onPointerMove}
@@ -169,7 +203,10 @@ export function DraggableBox({
         selected
           ? 'outline outline-2 outline-offset-1 outline-brand-purple'
           : 'outline outline-1 outline-offset-1 outline-transparent hover:outline-brand-purple/40',
-        'cursor-move focus-visible:outline-2 focus-visible:outline-brand-purple',
+        isEditing
+          ? 'cursor-text outline outline-2 outline-brand-purple'
+          : 'cursor-move',
+        'focus-visible:outline-2 focus-visible:outline-brand-purple',
       ].join(' ')}
       style={{
         left: x * scale,

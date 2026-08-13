@@ -19,6 +19,19 @@ Auf diesem Rechner ist kein Node installiert — die Entwicklung läuft über Do
 docker compose up --build        # Dev-Server auf http://localhost:8083
 ```
 
+`docker-compose.yml` hält `node_modules` in einem **Named Volume**, damit die
+Host-Installation die des Containers nicht überschattet. Docker befüllt ein
+solches Volume aber **nur beim erstmaligen Anlegen** aus dem Image:
+`docker compose up --build` baut das Image neu und lässt das Volume unberührt.
+Jede später hinzugefügte Abhängigkeit wäre damit zur Laufzeit schlicht nicht da
+— der Dev-Server meldet dann `Module not found` für ein Paket, das
+nachweislich in `package.json` steht.
+
+Deshalb gleicht `scripts/dev-entrypoint.sh` die Abhängigkeiten bei **jedem
+Start** mit `package.json` ab. Das kostet ein bis zwei Sekunden, wenn sich
+nichts geändert hat, und macht das Volume selbstheilend. Ein
+`docker compose down -v` ist nicht nötig.
+
 Einzelne Befehle ohne Compose:
 
 ```bash
@@ -49,7 +62,7 @@ Phase 1 (Spezifikation 4.1) plus zwei vorgezogene Werkzeuge aus Phase 2.
 | `/compress` | Komprimieren | Zwei Modi, siehe unten |
 | `/watermark` | Wasserzeichen | Diagonal / horizontal / gekachelt; **WYSIWYG-Livevorschau** |
 | `/page-numbers` | Seitenzahlen | 6 Positionen, 3 Formate, Startnummer; **WYSIWYG-Livevorschau** |
-| `/edit` | PDF bearbeiten | Text, Abdecken, Rechteck, Ellipse, Bild frei platzieren |
+| `/edit` | PDF bearbeiten | Office-artige Leiste: formatierter Text direkt auf der Seite, Marker, Bilder (auch Strg+V), Formen-Menü, Ausrichtungshilfslinien, Texterkennung |
 | `/sign` | PDF signieren | Unterschrift zeichnen / tippen / hochladen, dann positionieren |
 | `/protect` | Passwortschutz setzen/entfernen | Benutzer-/Besitzerpasswort, 4 Berechtigungen |
 
@@ -72,10 +85,81 @@ tatsächlich braucht:
   auf einer extrahierten Einzelseite aus und rastert das Ergebnis mit pdf.js.
   Kein CSS-Nachbau, der vom Export abweichen könnte. Entprellt (350 ms).
 
-### Bearbeiten und Signieren
+### Der Editor (`/edit`)
 
-Beide teilen sich `components/editor/`: eine `Stage` (Seite als maßstabsgetreue
-Fläche) und `DraggableBox` (verschiebbar, skalierbar). Geometrie wird in
+Aufgebaut wie eine Office-Anwendung: eine mitlaufende Leiste, obere Zeile für
+das Einfügen, untere Zeile für das Formatieren der Auswahl.
+
+- **Text** — wird **direkt auf der Seite** getippt: ein neues Feld öffnet sich
+  sofort im Schreibmodus, ein vorhandenes per Doppelklick (oder Enter/F2).
+  Schriftart, Größe, Fett/Kursiv, Ausrichtung, Textfarbe und Hintergrundfüllung
+  in der Formatzeile. Zeilenumbruch wird gegen die *gemessene* Breite der
+  tatsächlichen Schrift gerechnet, nicht geschätzt; Ausrichtung ist selbst
+  gerechnet, weil `pdf-lib` beim Umbruch immer linksbündig setzt.
+- **Formen** — Rechteck, Ellipse, Linie und Pfeil in einem Aufklappmenü, mit
+  Kontur, Füllung, Stärke und Deckkraft. Linien und Pfeile merken sich, entlang
+  welcher Diagonale gezogen wurde, damit die Pfeilspitze am richtigen Ende
+  sitzt. Die Spitze besteht aus zwei Strichen statt aus einer gefüllten Fläche —
+  so passt sie immer exakt zu Farbe, Stärke und Deckkraft des Schafts.
+- **Marker** — über die Seite ziehen. Gezeichnet im Blendmodus **Multiply**,
+  damit der Text darunter lesbar bleibt. Ein deckendes Rechteck würde ihn
+  begraben, ein transparentes ihn ausbleichen. Markierungen werden immer zuerst
+  gezeichnet, damit ein später gesetzter Marker nichts überdeckt.
+- **Bilder** — über Dateiauswahl oder **Strg+V** direkt aus der Zwischenablage
+  (Screenshots landen dort als Bild-Blob). Ein Einfügen, das auf ein echtes
+  Eingabefeld zielt, wird nicht abgefangen.
+- **Tastatur und Zwischenablage** — Entf löscht das ausgewählte Element,
+  Strg+C/Strg+X/Strg+V kopieren, schneiden und duplizieren es. Strg+V fügt
+  weiterhin Bilder aus der System-Zwischenablage ein; enthält diese ein Bild,
+  hat das Vorrang vor dem internen Duplikat.
+- **Ausrichtungshilfslinien** — beim Ziehen vergleicht `lib/pdf/guides.ts` die
+  Kanten und die Mitte des Elements mit Seitenmitte, Seitenrändern und allen
+  anderen Elementen; der nächstliegende Treffer innerhalb von 6 px zieht das
+  Element auf die Linie. Die Toleranz wird über den Maßstab gerechnet, das
+  Einrasten fühlt sich also bei jeder Zoomstufe gleich an. Pfeiltasten umgehen
+  das Einrasten bewusst — sie sind das Werkzeug für „fast richtig".
+
+#### Texterkennung
+
+Der Knopf **Text erkennen** liest die vorhandene Textebene über
+`pdf.js getTextContent` und gruppiert sie zu Zeilen. Die Koordinaten kommen
+direkt aus `transform` und liegen bereits in PDF-Punkten — dasselbe System wie
+die Annotationen, es wird nichts umgerechnet.
+
+Ein Klick auf eine erkannte Zeile **deckt sie ab und öffnet sie als Textfeld**
+mit dem Originalwortlaut, geschätzter Größe und passender Schriftfamilie.
+
+Warum abdecken statt ersetzen: `pdf-lib` kann Content-Streams nicht umschreiben,
+ein „ersetze dieses Wort" existiert nicht. Daraus folgen zwei Grenzen, die die
+Oberfläche benennt statt zu verschweigen:
+
+- Die Abdeckfarbe wird aus dem Ring **um** die Zeile herum abgetastet
+  (`sampleBackground`). Streuen diese Messpunkte zu stark, ist der Hintergrund
+  nicht einfarbig — dann erscheint eine Warnung, weil das Abdecken einen
+  sichtbaren Fleck hinterlässt.
+- Der neue Text nutzt die gewählte Schrift, nicht die Originalschrift. Eingebettete
+  Schriften sind meist Subsets und enthalten nur die bereits benutzten Zeichen.
+
+**Kein OCR.** Seiten ohne Textebene (Scans) melden das ausdrücklich, statt ein
+leeres Ergebnis zu zeigen. OCR bleibt Phase 3, offener Punkt 5.2.
+
+#### Schriften
+
+Helvetica, Times und Courier je in vier Schnitten — in jedem Reader vorhanden,
+null Ladekosten, decken Deutsch vollständig ab. Zusätzlich **Noto Sans**,
+nachgeladen erst wenn es gewählt wird (~560 kB) und mit `subset: true`
+eingebettet, sodass nur die benutzten Glyphen in der Ausgabedatei landen.
+
+Verifizierte Abdeckung von Noto Sans: **Latein, Griechisch, Kyrillisch — kein
+CJK, keine Emoji.** Ein CJK-fähiger Zeichensatz wäre mehrere MB groß. Die
+Oberfläche prüft den Text gegen die Abdeckung der gewählten Schrift und verweist
+bei Bedarf auf Noto Sans.
+
+### Signieren
+
+`/edit` und `/sign` teilen sich `components/editor/`: eine `Stage` (Seite als
+maßstabsgetreue Fläche) und `DraggableBox` (verschiebbar, skalierbar).
+Geometrie wird in
 **PDF-Punkten mit Ursprung unten links** gehalten — also im selben System, in dem
 pdf-lib zeichnet. Umgerechnet wird nur zur Anzeige, dadurch sammelt sich beim
 Ziehen kein Rundungsfehler an.
@@ -149,9 +233,14 @@ components/tools/        Eine Client-Komponente je Werkzeug + geteilte Bausteine
 components/editor/       Stage, DraggableBox, Seitennavigation — von /edit und /sign geteilt
 components/ui/           Dropzone, Button, Felder, Fortschritt, Icons
 lib/pdf/                 Reine Funktionen: Uint8Array rein, Uint8Array raus
+lib/pdf/guides.ts        Einrast-Geometrie der Hilfslinien (ohne React, testbar)
+lib/pdf/textLayer.ts     Textextraktion via pdf.js, zu Zeilen gruppiert
+lib/pdf/fonts.ts         Standardschriften + Noto Sans (Lazy Load, Subset)
+public/fonts/            Noto Sans (OFL 1.1, Lizenz liegt daneben)
 lib/tools.ts             Registry, die Navigation, Startseite und Titel speist
 i18n/, messages/         next-intl: Routing, Locale-Auflösung, EN/DE-Texte
-scripts/smoke-test.mts   Funktionstest für lib/pdf (31 Prüfungen)
+scripts/smoke-test.mts   Funktionstest für lib/pdf (40 Prüfungen)
+scripts/check-messages.mts  Prüft EN/DE auf Schlüsselgleichstand
 ```
 
 Tragende Entscheidungen:
@@ -181,21 +270,50 @@ Tragende Entscheidungen:
 
 ```bash
 docker run --rm -v "$PWD":/app -w /app node:22-alpine npm run test:smoke
+docker run --rm -v "$PWD":/app -w /app node:22-alpine npm run test:messages
 ```
 
-`scripts/smoke-test.mts` — 31 Prüfungen: Zusammenfügen, dateiübergreifendes
+`scripts/smoke-test.mts` — 40 Prüfungen: Zusammenfügen, dateiübergreifendes
 Komponieren, Splitten (4 Modi), Bereichs-Parser inkl. Fehlerfällen,
 Seitenoperationen mit Rotation, Wasserzeichen, Seitenzahlen, verlustfreie
-Kompression, Annotationen (Text/Formen/Bild) sowie Verschlüsseln/Entschlüsseln
+Kompression, Annotationen (Text/Marker/Formen/Bild), Zeilenumbruch,
+Zeichenabdeckung je Schrift, Einrast-Geometrie sowie Verschlüsseln/Entschlüsseln
 mit richtigem und falschem Passwort.
+
+`scripts/check-messages.mts` — prüft die Übersetzungen auf zwei Arten:
+
+1. **EN gegen DE** — ein Schlüssel, den nur eine Sprache kennt, erscheint sonst
+   als roher `MISSING_MESSAGE`-Fehler, und zwar erst dann, wenn jemand zufällig
+   diese Seite in dieser Sprache öffnet.
+2. **Code gegen Katalog** — der Quelltext wird nach `useTranslations`-Namensräumen
+   und den darauf aufgerufenen Schlüsseln durchsucht; jeder davon muss auflösbar
+   sein. Prüfung 1 allein reicht nicht: fehlt ein Schlüssel in *beiden* Sprachen,
+   sind die Kataloge weiterhin deckungsgleich. Genau so erreichte
+   `tools.edit.strokeLabel` den Browser.
 
 ### End-to-End im Browser
 
-14 Prüfungen für das, was ohne echtes Canvas nicht testbar ist: pdf.js-Worker,
+23 Prüfungen für das, was ohne echtes Canvas nicht testbar ist: pdf.js-Worker,
 Thumbnail-Rendering, Raster-Kompression, Download-Pfad, dateiübergreifendes
 Sortieren im Merge-Raster, Schnittmarken im Split, Aktualisierung der
-Livevorschau, Platzieren von Text und Unterschrift — sowie die Kopfzeile auf
-Überlauf bei 360/768/1280 px in der längeren der beiden Sprachen.
+Livevorschau, Marker im Multiply-Modus, **Nachladen und Subsetting von Noto Sans
+im Browser**, Einrasten auf die Seitenmitte samt Verschwinden der Hilfslinie,
+Bearbeiten direkt auf der Seite, Doppelklick zum Wiederöffnen, Entf-Taste,
+Strg+C/Strg+V, Formen-Menü mit gezogenem Pfeil, Einfügen aus der
+Zwischenablage, Texterkennung mit Ersetzen einer Zeile, Unterschrift zeichnen
+und platzieren — sowie die Kopfzeile auf Überlauf bei
+360/768/1280 px in der längeren der beiden Sprachen.
+
+Der Test „keine JavaScript-Fehler" ist nicht Beiwerk: er hat zweimal einen
+fehlenden Übersetzungsschlüssel gefunden, den weder Typecheck noch Build sehen
+konnten. Beim zweiten Mal wurde daraus Prüfung 2 in `check-messages.mts`, die
+diese Fehlerklasse jetzt ohne Browser abfängt.
+
+Gezogen wird über `dragOnStage()`: `locator.click()` scrollt sein Ziel selbst in
+den sichtbaren Bereich, `page.mouse` nicht — und eine A4-Bühne ist höher als das
+Fenster. Der Helfer positioniert die Seite vorher und **wirft mit klarer
+Begründung**, wenn ein Ziehpunkt außerhalb des Fensters läge, statt in einen
+Timeout zu laufen, dessen Meldung nichts über die Ursache sagt.
 
 ```bash
 # 1. Fixture erzeugen (einmalig)
@@ -231,6 +349,8 @@ nicht.
    Consent-Mechanismus ergänzen und den Datenschutzabschnitt nachziehen.
 3. **`PDF_TOOL_HOST`** in `.env` für die Traefik-Router-Regel setzen.
 4. **Favicon / Open-Graph-Bild** ergänzen (`app/icon.png`).
+5. **Schriftlizenz**: `public/fonts/LICENSE-NotoSans.txt` (OFL 1.1) liegt bereits
+   bei und muss beim Ausliefern erhalten bleiben.
 
 ## Offene Punkte aus der Spezifikation (Abschnitt 5)
 

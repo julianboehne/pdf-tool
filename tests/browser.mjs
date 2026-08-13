@@ -208,26 +208,360 @@ await check('watermark shows a live preview of the real result', async () => {
   );
 });
 
-await check('editor places a text element and burns it into the page', async () => {
-  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
-  await page.setInputFiles('input[type=file]', FIXTURE);
+/** The page surface itself — clicking it is how elements get placed. */
+const stageLocator = () => page.locator('div:has(> img[alt="Page 1"])').first();
 
-  const stage = page.getByAltText('Page 1').first();
-  await stage.waitFor({ timeout: 60000 });
+/**
+ * Scrolls the page surface to a known position and returns its box.
+ *
+ * `locator.click()` scrolls its target into view on its own, but `page.mouse`
+ * does not — and an A4 stage is taller than the viewport, so raw drag
+ * coordinates silently land outside it and the events go nowhere.
+ */
+async function positionStage() {
+  const stage = stageLocator();
 
-  await page.getByRole('button', { name: 'Text', exact: true }).click();
-  await page.locator('div:has(> img[alt="Page 1"])').first().click({
-    position: { x: 120, y: 200 },
+  await page.evaluate(async () => {
+    const element = document.querySelector('img[alt="Page 1"]')?.parentElement;
+    if (!element) return;
+
+    // globals.css sets `scroll-behavior: smooth`, so an animated scroll would
+    // still be in flight when the box is measured. Jump instantly instead.
+    window.scrollTo({
+      top: window.scrollY + element.getBoundingClientRect().top - 160,
+      behavior: 'instant',
+    });
+
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
   });
 
-  await page.waitForSelector('#edit-text', { timeout: 20000 });
-  await page.fill('#edit-text', 'Approved by QA');
+  return stage.boundingBox();
+}
+
+/** Drags inside the page surface, failing loudly if a point is off-screen. */
+async function dragOnStage(from, to) {
+  const box = await positionStage();
+  const viewport = page.viewportSize();
+
+  const points = [from, to].map((point) => ({
+    x: box.x + point.x,
+    y: box.y + point.y,
+  }));
+
+  for (const point of points) {
+    if (point.y < 0 || point.y > viewport.height) {
+      throw new Error(
+        `drag point y=${Math.round(point.y)} lies outside the ${viewport.height}px viewport — ` +
+          'the stage moved, so this drag would have hit nothing',
+      );
+    }
+  }
+
+  await page.mouse.move(points[0].x, points[0].y);
+  await page.mouse.down();
+  await page.mouse.move(points[1].x, points[1].y, { steps: 10 });
+  await page.mouse.up();
+}
+
+await check('editor edits text in place on the page', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await stageLocator().click({ position: { x: 120, y: 200 } });
+
+  // A new box drops straight into typing, on the page itself — the old build
+  // put the only editable field ~700px below the fold.
+  const editor = page.locator('[role="group"] textarea');
+  await editor.waitFor({ timeout: 20000 });
+
+  const editorBox = await editor.boundingBox();
+  const stageBox = await stageLocator().boundingBox();
+  if (
+    editorBox.y < stageBox.y ||
+    editorBox.y > stageBox.y + stageBox.height
+  ) {
+    throw new Error('the inline editor is not on the page surface');
+  }
+
+  await page.keyboard.type('Approved by QA');
+
+  await page.getByLabel('Font', { exact: true }).selectOption('times');
+  await page.getByLabel('Font size').selectOption('20');
+  await page.getByLabel('Bold').click();
+  await page.getByLabel('Centre').click();
 
   const bytes = await runAndDownload('Apply changes');
   assertPdf(bytes);
 
-  const pages = countPages(bytes);
-  if (pages !== 5) throw new Error(`expected 5 page objects, got ${pages}`);
+  const content = bytes.toString('latin1');
+  if (!content.includes('Times')) {
+    throw new Error('expected a Times font resource in the output');
+  }
+  if (countPages(bytes) !== 5) throw new Error('page count changed');
+});
+
+await check('double-click reopens an existing text box for editing', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await stageLocator().click({ position: { x: 120, y: 200 } });
+  await page.locator('[role="group"] textarea').waitFor({ timeout: 20000 });
+  await page.keyboard.type('First');
+
+  // Click away to leave editing, then double-click to come back.
+  await stageLocator().click({ position: { x: 400, y: 600 } });
+  if ((await page.locator('[role="group"] textarea').count()) !== 0) {
+    throw new Error('clicking the page did not end editing');
+  }
+
+  await page.getByRole('group', { name: 'Text box' }).first().dblclick();
+  const editor = page.locator('[role="group"] textarea');
+  await editor.waitFor({ timeout: 20000 });
+
+  if ((await editor.inputValue()) !== 'First') {
+    throw new Error('reopened editor lost the existing text');
+  }
+
+  await page.keyboard.type(' and second');
+  await page.keyboard.press('Escape');
+
+  const bytes = await runAndDownload('Apply changes');
+  assertPdf(bytes);
+});
+
+await check('Delete removes the selected element', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await stageLocator().click({ position: { x: 120, y: 200 } });
+  await page.locator('[role="group"] textarea').waitFor({ timeout: 20000 });
+  await page.keyboard.type('Delete me');
+  await page.keyboard.press('Escape');
+
+  // Selecting by click used to leave focus on the page, so the frame never
+  // received the key at all.
+  await page.getByRole('group', { name: 'Text box' }).first().click();
+  await page.keyboard.press('Delete');
+
+  if ((await page.getByRole('group', { name: 'Text box' }).count()) !== 0) {
+    throw new Error('Delete did not remove the selected element');
+  }
+});
+
+await check('Ctrl+C and Ctrl+V duplicate an element', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await stageLocator().click({ position: { x: 120, y: 200 } });
+  await page.locator('[role="group"] textarea').waitFor({ timeout: 20000 });
+  await page.keyboard.type('Copy me');
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('group', { name: 'Text box' }).first().click();
+  await page.keyboard.press('Control+c');
+  await page.keyboard.press('Control+v');
+  await page.waitForTimeout(300);
+
+  const count = await page.getByRole('group', { name: 'Text box' }).count();
+  if (count !== 2) throw new Error(`expected 2 text boxes after paste, got ${count}`);
+
+  const bytes = await runAndDownload('Apply changes');
+  assertPdf(bytes);
+});
+
+await check('shapes menu offers several shapes and draws an arrow', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  const shapes = page.getByRole('button', { name: 'Shapes' });
+  await shapes.click();
+
+  for (const shape of ['Rectangle', 'Ellipse', 'Line', 'Arrow']) {
+    if ((await page.getByRole('button', { name: shape, exact: true }).count()) === 0) {
+      throw new Error(`the shapes menu is missing "${shape}"`);
+    }
+  }
+
+  await page.getByRole('button', { name: 'Arrow', exact: true }).click();
+
+  // Drag downwards, so the head has to land at the lower end.
+  await dragOnStage({ x: 80, y: 200 }, { x: 300, y: 380 });
+
+  await page.getByRole('group', { name: 'Arrow' }).first().waitFor({ timeout: 20000 });
+
+  const bytes = await runAndDownload('Apply changes');
+  assertPdf(bytes);
+  if (countPages(bytes) !== 5) throw new Error('page count changed');
+});
+
+await check('marker draws a Multiply-blended highlight', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Marker', exact: true }).click();
+  await page.getByLabel('Green').click();
+
+  // Drag across the page the way a highlighter is used.
+  await dragOnStage({ x: 60, y: 220 }, { x: 320, y: 226 });
+
+  const bytes = await runAndDownload('Apply changes');
+  assertPdf(bytes);
+
+  if (!bytes.includes(Buffer.from('/Multiply'))) {
+    throw new Error('highlight was not written with the Multiply blend mode');
+  }
+});
+
+await check('Noto Sans is fetched, subset and embedded in the browser', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await stageLocator().click({ position: { x: 100, y: 260 } });
+  await page.locator('[role="group"] textarea').waitFor({ timeout: 20000 });
+
+  // Greek is the point of the embedded font: the standard families cannot
+  // encode it at all.
+  await page.keyboard.type('Ελληνικά Grüße');
+  await page.keyboard.press('Escape');
+  await page.getByRole('group', { name: 'Text box' }).first().click();
+  await page.getByLabel('Font', { exact: true }).selectOption('noto');
+
+  const bytes = await runAndDownload('Apply changes', 90000);
+  assertPdf(bytes);
+
+  const content = bytes.toString('latin1');
+  if (!/NotoSans/i.test(content)) {
+    throw new Error('no NotoSans font programme in the output');
+  }
+  // Subsetting is what keeps a 557 kB font from landing in every export.
+  if (bytes.length > 400_000) {
+    throw new Error(`output looks unsubset: ${bytes.length} bytes`);
+  }
+});
+
+await check('alignment guides appear and snap an element to the page centre', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await stageLocator().click({ position: { x: 80, y: 300 } });
+  await page.locator('[role="group"] textarea').waitFor({ timeout: 20000 });
+  await page.keyboard.type('Align me');
+  await page.keyboard.press('Escape');
+
+  const stageBox = await positionStage();
+  const element = page.getByRole('group', { name: 'Text box' }).first();
+  const elementBox = await element.boundingBox();
+
+  // Drag the element's centre to just beside the page centre and hold there.
+  const targetX = stageBox.x + stageBox.width / 2 + 3;
+  await page.mouse.move(
+    elementBox.x + elementBox.width / 2,
+    elementBox.y + elementBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(targetX, elementBox.y + elementBox.height / 2, {
+    steps: 12,
+  });
+
+  const guideCount = await page.locator('span.bg-fuchsia-500').count();
+  if (guideCount === 0) {
+    throw new Error('no alignment guide appeared near the page centre');
+  }
+
+  await page.mouse.up();
+
+  // Guides are transient: they must disappear once the drag ends.
+  if ((await page.locator('span.bg-fuchsia-500').count()) !== 0) {
+    throw new Error('alignment guide stayed visible after the drag ended');
+  }
+
+  const finalBox = await element.boundingBox();
+  const offset = Math.abs(
+    finalBox.x + finalBox.width / 2 - (stageBox.x + stageBox.width / 2),
+  );
+  if (offset > 1.5) {
+    throw new Error(`element did not snap to centre, off by ${offset.toFixed(1)}px`);
+  }
+});
+
+await check('pasting an image from the clipboard inserts it', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  // Synthesise a clipboard paste carrying a PNG, as a screenshot would.
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 120;
+    canvas.height = 60;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(0, 0, 120, 60);
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const data = new DataTransfer();
+    data.items.add(new File([blob], 'pasted.png', { type: 'image/png' }));
+
+    window.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: data, bubbles: true }),
+    );
+  });
+
+  await page.getByRole('group', { name: 'Image' }).first().waitFor({ timeout: 20000 });
+
+  const bytes = await runAndDownload('Apply changes');
+  assertPdf(bytes);
+
+  if (!bytes.includes(Buffer.from('/Image'))) {
+    throw new Error('pasted image is missing from the output');
+  }
+});
+
+await check('text recognition finds lines and replaces one', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.getByAltText('Page 1').first().waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Recognise text' }).click();
+
+  // The fixture writes "Fixture page 1" on page 1 — one recognisable line.
+  const line = page.getByRole('button', { name: /Replace the line/ }).first();
+  await line.waitFor({ timeout: 60000 });
+
+  const label = await line.getAttribute('aria-label');
+  if (!/Fixture page 1/.test(label)) {
+    throw new Error(`unexpected recognised text: ${label}`);
+  }
+
+  await line.click();
+
+  // The line becomes a text box pre-filled with the original wording.
+  const textarea = page.locator('[role="group"] textarea');
+  await textarea.waitFor({ timeout: 20000 });
+  const value = await textarea.inputValue();
+  if (!/Fixture page 1/.test(value)) {
+    throw new Error(`text box not pre-filled, got "${value}"`);
+  }
+
+  await textarea.fill('Replaced heading');
+  await page.keyboard.press('Escape');
+  const bytes = await runAndDownload('Apply changes');
+  assertPdf(bytes);
+  if (countPages(bytes) !== 5) throw new Error('page count changed');
 });
 
 await check('signature is drawn, placed and written into the PDF', async () => {

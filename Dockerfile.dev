@@ -10,4 +10,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV WATCHPACK_POLLING=true
 ENV CHOKIDAR_USEPOLLING=true
 EXPOSE 3000
-CMD ["npm", "run", "dev"]
+# Invoked through `sh` rather than as an executable: the file arrives over a
+# bind mount, where the host's permission bits decide, not the image's.
+CMD ["sh", "/app/scripts/dev-entrypoint.sh"]

@@ -22,6 +22,8 @@ export type PdfToolErrorKey =
   | 'invalidRange'
   | 'unsupportedCharacters'
   | 'unsupportedImage'
+  | 'fontUnavailable'
+  | 'noTextLayer'
   | 'passwordMissing'
   | 'renderFailed'
   | 'unknown';

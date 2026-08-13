@@ -64,7 +64,9 @@
     "passwordMissing": "Please enter a password.",
     "renderFailed": "The pages could not be rendered. The document may be damaged.",
     "unknown": "Something went wrong while processing this file.",
-    "unsupportedImage": "This image format is not supported. Use PNG or JPEG."
+    "unsupportedImage": "This image format is not supported. Use PNG or JPEG.",
+    "fontUnavailable": "The font file could not be loaded. Check your connection and try again.",
+    "noTextLayer": "This page contains no text layer."
   },
   "tools": {
     "merge": {
@@ -181,31 +183,61 @@
       }
     },
     "edit": {
-      "short": "Add text, boxes and images",
+      "short": "Add text, marker, images — like an office tool",
       "title": "Edit PDF",
-      "description": "Add text, cover up passages, draw boxes and place images — then flatten it all into the document.",
-      "toolbarHint": "Pick a tool, then click the page to place it. Select an element to change it, drag to move, arrow keys to nudge.",
-      "placeHint": "Click the page where the element should go.",
-      "newTextPlaceholder": "New text",
+      "description": "Add and format text, highlight passages, place images, and replace text the document already contains.",
       "elementCount": "{count, plural, =0 {No elements yet} one {# element} other {# elements}}",
-      "textLabel": "Text",
-      "fontSizeLabel": "Font size",
-      "colorLabel": "Colour",
-      "boldLabel": "Bold",
-      "fillLabel": "Fill",
-      "fillOn": "Filled",
-      "strokeLabel": "Outline",
-      "strokeOn": "Outlined",
-      "opacityLabel": "Opacity",
-      "action": "Apply changes",
-      "flattenNote": "Elements are drawn into the page content, not added as annotations — they cannot be moved again after export.",
-      "add": {
+      "tool": {
+        "select": "Select",
         "text": "Text",
-        "cover": "Cover up",
+        "highlight": "Marker",
+        "shapes": "Shapes",
+        "image": "Image",
         "rect": "Rectangle",
         "ellipse": "Ellipse",
-        "image": "Image"
-      }
+        "line": "Line",
+        "arrow": "Arrow"
+      },
+      "font": {
+        "helvetica": "Helvetica",
+        "times": "Times",
+        "courier": "Courier",
+        "noto": "Noto Sans"
+      },
+      "align": {
+        "left": "Align left",
+        "center": "Centre",
+        "right": "Align right"
+      },
+      "fontFamilyLabel": "Font",
+      "fontSizeLabel": "Font size",
+      "boldLabel": "Bold",
+      "italicLabel": "Italic",
+      "textColorLabel": "Text colour",
+      "backgroundLabel": "Background fill",
+      "markerColorLabel": "Marker colour",
+      "markerHint": "Drag across the page to highlight.",
+      "markerColor": {
+        "fde047": "Yellow",
+        "86efac": "Green",
+        "7dd3fc": "Blue",
+        "f9a8d4": "Pink",
+        "fdba74": "Orange"
+      },
+      "recognizeAction": "Recognise text",
+      "recognizing": "Recognising…",
+      "recognized": "Found {count, plural, one {# line} other {# lines}}. Click one to replace it — it gets covered and reopened as an editable box.",
+      "noTextLayer": "No text layer found on this page. The page is probably a scan; its text is pixels, not characters. Recognising scanned text (OCR) is not part of this version.",
+      "coverWarning": "The background behind that line is not one flat colour, so covering it may leave a visible patch. Check the result before exporting.",
+      "unsupportedInFont": "A text box contains characters the chosen font cannot render. Switch that box to Noto Sans, which also covers Greek and Cyrillic.",
+      "replaceLine": "Replace the line “{text}”",
+      "action": "Apply changes",
+      "flattenNote": "Elements are drawn into the page content, not added as annotations — they cannot be moved again after export. Replacing text works by covering the original and redrawing it, so the new text uses the chosen font rather than the document’s original one.",
+      "strokeWidthLabel": "Weight",
+      "toolbarHint": "Pick a tool, then click or drag on the page. Double-click a text box to edit it, drag to move, arrow keys to nudge, Delete to remove. Ctrl+C / Ctrl+V copies elements; Ctrl+V also pastes images from the clipboard.",
+      "fillLabel": "Fill",
+      "strokeLabel": "Outline",
+      "opacityLabel": "Opacity"
     },
     "sign": {
       "short": "Draw a signature and place it",
@@ -335,7 +367,10 @@
       "text": "Text box",
       "rect": "Rectangle",
       "ellipse": "Ellipse",
-      "image": "Image"
+      "image": "Image",
+      "highlight": "Highlight",
+      "line": "Line",
+      "arrow": "Arrow"
     }
   },
   "sign": {

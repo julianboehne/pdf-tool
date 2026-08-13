@@ -1,4 +1,5 @@
 import { PdfToolError } from './errors';
+import { isNotoEncodable, type FontFamily } from './fonts';
 
 /**
  * The 27 code points CP1252 places in 0x80-0x9F, where Latin-1 has controls.
@@ -39,6 +40,24 @@ export function isWinAnsiEncodable(text: string): boolean {
  */
 export function assertDrawable(text: string): void {
   if (!isWinAnsiEncodable(text)) {
+    throw new PdfToolError('unsupportedCharacters');
+  }
+}
+
+/**
+ * Whether a font family can render the text.
+ *
+ * The three standard families are limited to WinAnsi; Noto Sans reaches beyond
+ * it into Greek and Cyrillic, which is why picking it is the way to type those.
+ */
+export function supportsText(text: string, family: FontFamily): boolean {
+  return family === 'noto'
+    ? isNotoEncodable(text)
+    : isWinAnsiEncodable(text);
+}
+
+export function assertDrawableWith(text: string, family: FontFamily): void {
+  if (!supportsText(text, family)) {
     throw new PdfToolError('unsupportedCharacters');
   }
 }

@@ -17,7 +17,16 @@ import { addPageNumbers } from '../lib/pdf/pageNumbers.js';
 import { protectPdf, removePassword } from '../lib/pdf/protect.js';
 import { compressPdf } from '../lib/pdf/compress.js';
 import { composePdf } from '../lib/pdf/compose.js';
-import { applyAnnotations, type Annotation } from '../lib/pdf/annotate.js';
+import {
+  applyAnnotations,
+  lineEndpoints,
+  sortForPainting,
+  wrapText,
+  type Annotation,
+} from '../lib/pdf/annotate.js';
+import { snapToGuides, centerOnPage } from '../lib/pdf/guides.js';
+import { isNotoEncodable } from '../lib/pdf/fonts.js';
+import { supportsText } from '../lib/pdf/text.js';
 import { parsePageRanges, parsePageSelection } from '../lib/pdf/ranges.js';
 import { isWinAnsiEncodable } from '../lib/pdf/text.js';
 import { getPageCount, isEncrypted, loadPdf } from '../lib/pdf/load.js';
@@ -353,7 +362,11 @@ await test('annotations are drawn onto the page', async () => {
       text: 'Nachträglich ergänzt',
       fontSize: 14,
       color: '#111827',
+      fontFamily: 'helvetica',
       bold: true,
+      italic: false,
+      align: 'left',
+      background: null,
     },
     {
       id: 'cover-1',
@@ -416,7 +429,11 @@ await test('annotations reject text the standard font cannot encode', async () =
         text: '署名',
         fontSize: 14,
         color: '#000000',
+        fontFamily: 'helvetica',
         bold: false,
+        italic: false,
+        align: 'left',
+        background: null,
       },
     ]),
   );
@@ -441,6 +458,233 @@ await test('annotations reject an unsupported image format', async () => {
 
 await test('applying no annotations is an error, not a silent no-op', async () => {
   await expectError('emptySelection', () => applyAnnotations(a, []));
+});
+
+await test('text wraps greedily against measured widths', async () => {
+  // 10 units per character keeps the arithmetic checkable by hand.
+  const font = { widthOfTextAtSize: (s: string, size: number) => s.length * size };
+
+  assert.deepEqual(wrapText('aaa bbb ccc', 70, 10, font), ['aaa bbb', 'ccc']);
+  assert.deepEqual(wrapText('one\ntwo', 1000, 10, font), ['one', 'two']);
+  // A single word wider than the box overflows rather than being cut apart.
+  assert.deepEqual(wrapText('enormously', 30, 10, font), ['enormously']);
+  assert.deepEqual(wrapText('a b', 1000, 10, font), ['a b']);
+});
+
+await test('text alignment and background reach the output', async () => {
+  const output = await applyAnnotations(a, [
+    {
+      id: 'text-aligned',
+      type: 'text',
+      page: 0,
+      x: 100,
+      y: 500,
+      width: 300,
+      height: 80,
+      text: 'Zentriert gesetzt mit Hintergrund',
+      fontSize: 14,
+      color: '#111827',
+      fontFamily: 'times',
+      bold: false,
+      italic: true,
+      align: 'center',
+      background: '#fef08a',
+    },
+  ]);
+
+  const doc = await loadPdf(output);
+  assert.equal(doc.getPageCount(), 5);
+  assert.ok(output.byteLength > a.byteLength);
+});
+
+await test('highlight is written with the Multiply blend mode', async () => {
+  const output = await applyAnnotations(a, [
+    {
+      id: 'hl-1',
+      type: 'highlight',
+      page: 0,
+      x: 60,
+      y: 750,
+      width: 200,
+      height: 16,
+      color: '#fde047',
+    },
+  ]);
+
+  // Multiply is what keeps the covered text readable; if it silently fell back
+  // to normal painting the marker would bury the words underneath.
+  const content = Buffer.from(output).toString('latin1');
+  assert.ok(content.includes('/Multiply'), 'expected a /Multiply blend mode in the output');
+});
+
+await test('highlights are sorted to the back regardless of insertion order', async () => {
+  // Checking the pure ordering function rather than sniffing the compressed
+  // content stream: the assertion stays about the rule, not about how pdf-lib
+  // happens to serialise it.
+  const text: Annotation = {
+    id: 'text-front',
+    type: 'text',
+    page: 0,
+    x: 60,
+    y: 600,
+    width: 200,
+    height: 30,
+    text: 'Vorn',
+    fontSize: 12,
+    color: '#000000',
+    fontFamily: 'helvetica',
+    bold: false,
+    italic: false,
+    align: 'left',
+    background: null,
+  };
+
+  const marker: Annotation = {
+    id: 'hl-back',
+    type: 'highlight',
+    page: 0,
+    x: 60,
+    y: 600,
+    width: 200,
+    height: 30,
+    color: '#fde047',
+  };
+
+  // Marker added *after* the text must still be painted first.
+  assert.deepEqual(
+    sortForPainting([text, marker]).map((item) => item.id),
+    ['hl-back', 'text-front'],
+  );
+
+  // Relative order within each group is preserved.
+  const second = { ...marker, id: 'hl-2' };
+  assert.deepEqual(
+    sortForPainting([marker, text, second]).map((item) => item.id),
+    ['hl-back', 'hl-2', 'text-front'],
+  );
+});
+
+await test('line endpoints follow the diagonal that was drawn', async () => {
+  const box = { id: 'l', page: 0, x: 100, y: 200, width: 60, height: 40 };
+
+  // Dragging up-right runs along the ↗ diagonal…
+  assert.deepEqual(
+    lineEndpoints({
+      ...box,
+      type: 'line',
+      fromCorner: 'bottom-left',
+      stroke: '#000000',
+      strokeWidth: 2,
+      opacity: 1,
+    }),
+    { start: { x: 100, y: 200 }, end: { x: 160, y: 240 } },
+  );
+
+  // …and dragging down-right along the ↘ one. Without this an arrow drawn
+  // downwards would point the wrong way.
+  assert.deepEqual(
+    lineEndpoints({
+      ...box,
+      type: 'arrow',
+      fromCorner: 'top-left',
+      stroke: '#000000',
+      strokeWidth: 2,
+      opacity: 1,
+    }),
+    { start: { x: 100, y: 240 }, end: { x: 160, y: 200 } },
+  );
+});
+
+await test('lines and arrows are drawn into the document', async () => {
+  const output = await applyAnnotations(a, [
+    {
+      id: 'line-1',
+      type: 'line',
+      page: 0,
+      x: 80,
+      y: 400,
+      width: 200,
+      height: 0,
+      fromCorner: 'bottom-left',
+      stroke: '#2563eb',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    {
+      id: 'arrow-1',
+      type: 'arrow',
+      page: 1,
+      x: 80,
+      y: 300,
+      width: 150,
+      height: 90,
+      fromCorner: 'top-left',
+      stroke: '#dc2626',
+      strokeWidth: 3,
+      opacity: 0.8,
+    },
+  ]);
+
+  const doc = await loadPdf(output);
+  assert.equal(doc.getPageCount(), 5);
+  assert.ok(output.byteLength > a.byteLength);
+});
+
+await test('Noto Sans coverage check accepts Greek and Cyrillic, rejects CJK', async () => {
+  assert.equal(isNotoEncodable('Grüße — 50 € «2024»'), true);
+  assert.equal(isNotoEncodable('Ελληνικά'), true);
+  assert.equal(isNotoEncodable('Кириллица'), true);
+  assert.equal(isNotoEncodable('機密'), false);
+  assert.equal(isNotoEncodable('🔒'), false);
+
+  // The standard families stay limited to WinAnsi, which is the whole reason
+  // Noto Sans is offered at all.
+  assert.equal(supportsText('Ελληνικά', 'helvetica'), false);
+  assert.equal(supportsText('Ελληνικά', 'noto'), true);
+  assert.equal(supportsText('Grüße', 'helvetica'), true);
+});
+
+await test('alignment guides snap to the page centre', async () => {
+  const page = { width: 600, height: 800 };
+  // Box centre at 296 — 4 points shy of the page centre at 300.
+  const moving = { x: 196, y: 100, width: 200, height: 50 };
+
+  const snapped = snapToGuides(moving, [], page, 6);
+
+  assert.equal(snapped.rect.x, 200, 'should pull to a centred x');
+  assert.ok(
+    snapped.guides.some((g) => g.axis === 'x' && g.kind === 'page-center'),
+    'should report the page-centre guide',
+  );
+});
+
+await test('alignment guides snap to another element', async () => {
+  const page = { width: 600, height: 800 };
+  const other = { x: 100, y: 400, width: 120, height: 40 };
+  // Left edge 3 points away from the other element's left edge.
+  const moving = { x: 103, y: 200, width: 80, height: 30 };
+
+  const snapped = snapToGuides(moving, [other], page, 6);
+  assert.equal(snapped.rect.x, 100);
+  assert.ok(snapped.guides.some((g) => g.axis === 'x' && g.kind === 'element'));
+});
+
+await test('alignment guides leave distant elements alone', async () => {
+  const page = { width: 600, height: 800 };
+  const moving = { x: 40, y: 40, width: 100, height: 20 };
+
+  const snapped = snapToGuides(moving, [], page, 6);
+  assert.deepEqual(snapped.rect, moving);
+  assert.equal(snapped.guides.length, 0);
+});
+
+await test('centring on the page is exact', async () => {
+  const centred = centerOnPage(
+    { x: 0, y: 0, width: 200, height: 100 },
+    { width: 600, height: 800 },
+    'both',
+  );
+  assert.deepEqual(centred, { x: 200, y: 350, width: 200, height: 100 });
 });
 
 await test('a non-PDF input is reported as invalid', async () => {

@@ -64,7 +64,9 @@
     "passwordMissing": "Bitte geben Sie ein Passwort ein.",
     "renderFailed": "Die Seiten konnten nicht gerendert werden. Das Dokument ist möglicherweise beschädigt.",
     "unknown": "Bei der Verarbeitung dieser Datei ist ein Fehler aufgetreten.",
-    "unsupportedImage": "Dieses Bildformat wird nicht unterstützt. Verwenden Sie PNG oder JPEG."
+    "unsupportedImage": "Dieses Bildformat wird nicht unterstützt. Verwenden Sie PNG oder JPEG.",
+    "fontUnavailable": "Die Schriftdatei konnte nicht geladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
+    "noTextLayer": "Diese Seite enthält keine Textebene."
   },
   "tools": {
     "merge": {
@@ -181,31 +183,61 @@
       }
     },
     "edit": {
-      "short": "Text, Kästen und Bilder ergänzen",
+      "short": "Text, Marker, Bilder — wie ein Office-Werkzeug",
       "title": "PDF bearbeiten",
-      "description": "Text ergänzen, Passagen abdecken, Kästen zeichnen und Bilder platzieren — anschließend fest ins Dokument übernehmen.",
-      "toolbarHint": "Werkzeug wählen, dann auf die Seite klicken. Element anklicken zum Ändern, ziehen zum Verschieben, Pfeiltasten für Feinjustierung.",
-      "placeHint": "Klicken Sie auf die Stelle, an der das Element erscheinen soll.",
-      "newTextPlaceholder": "Neuer Text",
+      "description": "Text einfügen und formatieren, Passagen markieren, Bilder platzieren und vorhandenen Text im Dokument ersetzen.",
       "elementCount": "{count, plural, =0 {Noch keine Elemente} one {# Element} other {# Elemente}}",
-      "textLabel": "Text",
-      "fontSizeLabel": "Schriftgröße",
-      "colorLabel": "Farbe",
-      "boldLabel": "Fett",
-      "fillLabel": "Füllung",
-      "fillOn": "Gefüllt",
-      "strokeLabel": "Kontur",
-      "strokeOn": "Mit Kontur",
-      "opacityLabel": "Deckkraft",
-      "action": "Änderungen übernehmen",
-      "flattenNote": "Elemente werden fest in den Seiteninhalt gezeichnet, nicht als Kommentare angehängt — nach dem Export sind sie nicht mehr verschiebbar.",
-      "add": {
+      "tool": {
+        "select": "Auswählen",
         "text": "Text",
-        "cover": "Abdecken",
+        "highlight": "Marker",
+        "shapes": "Formen",
+        "image": "Bild",
         "rect": "Rechteck",
         "ellipse": "Ellipse",
-        "image": "Bild"
-      }
+        "line": "Linie",
+        "arrow": "Pfeil"
+      },
+      "font": {
+        "helvetica": "Helvetica",
+        "times": "Times",
+        "courier": "Courier",
+        "noto": "Noto Sans"
+      },
+      "align": {
+        "left": "Linksbündig",
+        "center": "Zentriert",
+        "right": "Rechtsbündig"
+      },
+      "fontFamilyLabel": "Schriftart",
+      "fontSizeLabel": "Schriftgröße",
+      "boldLabel": "Fett",
+      "italicLabel": "Kursiv",
+      "textColorLabel": "Textfarbe",
+      "backgroundLabel": "Hintergrundfüllung",
+      "markerColorLabel": "Markerfarbe",
+      "markerHint": "Zum Markieren über die Seite ziehen.",
+      "markerColor": {
+        "fde047": "Gelb",
+        "86efac": "Grün",
+        "7dd3fc": "Blau",
+        "f9a8d4": "Rosa",
+        "fdba74": "Orange"
+      },
+      "recognizeAction": "Text erkennen",
+      "recognizing": "Wird erkannt…",
+      "recognized": "{count, plural, one {# Zeile} other {# Zeilen}} gefunden. Zum Ersetzen anklicken — die Zeile wird abgedeckt und als bearbeitbares Feld geöffnet.",
+      "noTextLayer": "Auf dieser Seite wurde keine Textebene gefunden. Vermutlich ein Scan: der Text besteht aus Pixeln, nicht aus Zeichen. Texterkennung für Scans (OCR) ist in dieser Version nicht enthalten.",
+      "coverWarning": "Der Hintergrund hinter dieser Zeile ist nicht einfarbig — das Abdecken kann einen sichtbaren Fleck hinterlassen. Prüfen Sie das Ergebnis vor dem Export.",
+      "unsupportedInFont": "Ein Textfeld enthält Zeichen, die die gewählte Schrift nicht darstellen kann. Stellen Sie dieses Feld auf Noto Sans um — die deckt auch Griechisch und Kyrillisch ab.",
+      "replaceLine": "Zeile „{text}“ ersetzen",
+      "action": "Änderungen übernehmen",
+      "flattenNote": "Elemente werden fest in den Seiteninhalt gezeichnet, nicht als Kommentare angehängt — nach dem Export sind sie nicht mehr verschiebbar. Textersetzung funktioniert durch Abdecken und Neuzeichnen: der neue Text nutzt die gewählte Schrift, nicht die Originalschrift des Dokuments.",
+      "strokeWidthLabel": "Stärke",
+      "toolbarHint": "Werkzeug wählen, dann auf die Seite klicken oder ziehen. Textfeld zum Bearbeiten doppelklicken, ziehen zum Verschieben, Pfeiltasten für Feinjustierung, Entf zum Löschen. Strg+C / Strg+V kopiert Elemente; Strg+V fügt auch Bilder aus der Zwischenablage ein.",
+      "fillLabel": "Füllung",
+      "strokeLabel": "Kontur",
+      "opacityLabel": "Deckkraft"
     },
     "sign": {
       "short": "Unterschrift zeichnen und platzieren",
@@ -335,7 +367,10 @@
       "text": "Textfeld",
       "rect": "Rechteck",
       "ellipse": "Ellipse",
-      "image": "Bild"
+      "image": "Bild",
+      "highlight": "Markierung",
+      "line": "Linie",
+      "arrow": "Pfeil"
     }
   },
   "sign": {
