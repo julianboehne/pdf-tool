@@ -1,7 +1,8 @@
 # PDF Tool
 
 Client-seitiges PDF-Werkzeug (Next.js), umgesetzt nach `pdf-tool-spezifikation.md`.
-Dieser Stand deckt **Phase 1 (Spezifikation 4.1)** vollständig ab.
+Dieser Stand deckt **Phase 1 (Spezifikation 4.1)** vollständig ab und zieht zwei
+Werkzeuge aus Phase 2 vor: Bearbeiten und Signieren.
 
 Die gesamte PDF-Verarbeitung läuft im Browser. Es gibt keinen Upload, keinen
 Server-Endpunkt für Dateien und keine Speicherung. Der Server liefert
@@ -36,21 +37,59 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ---
 
-## Funktionsumfang (Phase 1)
+## Funktionsumfang
+
+Phase 1 (Spezifikation 4.1) plus zwei vorgezogene Werkzeuge aus Phase 2.
 
 | Route | Funktion | Umsetzung |
 |---|---|---|
-| `/merge` | PDFs kombinieren | `copyPages`, Reihenfolge per Drag-and-Drop und Pfeiltasten |
-| `/split` | PDF splitten | Nach Seitenbereich, alle N Seiten, oder seitenweise; Mehrfachergebnis als ZIP |
-| `/organize` | Seiten löschen/umsortieren/rotieren/extrahieren | Thumbnail-Raster via pdf.js, Drag-and-Drop + Buttons |
+| `/merge` | PDFs kombinieren | Seitenraster über **alle** Dateien: Seiten dateiübergreifend sortieren, drehen, entfernen |
+| `/split` | PDF splitten | Visuell mit Schnittmarken · Seitenbereich · alle N Seiten · seitenweise; Vorschau zeigt die Farbbänder der Ergebnisdateien |
+| `/organize` | Seiten löschen/umsortieren/rotieren/extrahieren | Dasselbe Seitenraster, einzelnes Dokument |
 | `/compress` | Komprimieren | Zwei Modi, siehe unten |
-| `/watermark` | Wasserzeichen | Diagonal / horizontal / gekachelt, Größe, Farbe, Deckkraft, Seitenauswahl |
-| `/page-numbers` | Seitenzahlen | 6 Positionen, 3 Formate, Startnummer, erste Seite überspringen |
+| `/watermark` | Wasserzeichen | Diagonal / horizontal / gekachelt; **WYSIWYG-Livevorschau** |
+| `/page-numbers` | Seitenzahlen | 6 Positionen, 3 Formate, Startnummer; **WYSIWYG-Livevorschau** |
+| `/edit` | PDF bearbeiten | Text, Abdecken, Rechteck, Ellipse, Bild frei platzieren |
+| `/sign` | PDF signieren | Unterschrift zeichnen / tippen / hochladen, dann positionieren |
 | `/protect` | Passwortschutz setzen/entfernen | Benutzer-/Besitzerpasswort, 4 Berechtigungen |
 
 Sprachlogik nach Spezifikation 2.1 (verifiziert):
 `Accept-Language: de*` → `/de`, alles andere → `/en`, manuelle Umschaltung
 überschreibt die Erkennung via `NEXT_LOCALE`-Cookie.
+
+### Vorschauen
+
+Drei verschiedene Vorschau-Arten, je nach dem, was die Entscheidung des Nutzers
+tatsächlich braucht:
+
+- **Seitenraster** (`merge`, `organize`) — Thumbnails aller Seiten, per
+  `usePageThumbnails` **pro Datei zwischengespeichert**: eine fünfte Datei zum
+  Merge hinzuzufügen rendert die ersten vier nicht neu.
+- **Schnittvorschau** (`split`) — Farbbänder pro Ergebnisdatei. Vorschau und
+  Export lesen dieselbe Funktion `buildGroups`, die Bänder sind also keine
+  Annäherung, sondern genau die Dateien, die entstehen.
+- **Livevorschau** (`watermark`, `page-numbers`) — führt die *echte* Operation
+  auf einer extrahierten Einzelseite aus und rastert das Ergebnis mit pdf.js.
+  Kein CSS-Nachbau, der vom Export abweichen könnte. Entprellt (350 ms).
+
+### Bearbeiten und Signieren
+
+Beide teilen sich `components/editor/`: eine `Stage` (Seite als maßstabsgetreue
+Fläche) und `DraggableBox` (verschiebbar, skalierbar). Geometrie wird in
+**PDF-Punkten mit Ursprung unten links** gehalten — also im selben System, in dem
+pdf-lib zeichnet. Umgerechnet wird nur zur Anzeige, dadurch sammelt sich beim
+Ziehen kein Rundungsfehler an.
+
+Zwei bewusste Einschränkungen, beide in der Oberfläche benannt:
+
+- Elemente werden **fest in den Seiteninhalt gezeichnet**, nicht als
+  PDF-Annotationen angehängt. Nach dem Export sind sie nicht mehr verschiebbar.
+- `/sign` setzt eine **visuelle** Unterschrift. Das ist keine kryptografische
+  oder qualifizierte elektronische Signatur nach eIDAS.
+
+Die Unterschrift wird auf ihre tatsächliche Tinte zugeschnitten (`trimToInk`) und
+als PNG mit Transparenz eingebettet — sonst zöge man beim Platzieren einen
+überwiegend leeren Kasten über die Seite.
 
 ---
 
@@ -105,13 +144,14 @@ Aufgabe, kein Nachziehen hier.
 ## Architektur
 
 ```
-app/[locale]/            Routen (statisch vorgeneriert, 23 Seiten)
+app/[locale]/            Routen (statisch vorgeneriert, 27 Seiten)
 components/tools/        Eine Client-Komponente je Werkzeug + geteilte Bausteine
+components/editor/       Stage, DraggableBox, Seitennavigation — von /edit und /sign geteilt
 components/ui/           Dropzone, Button, Felder, Fortschritt, Icons
 lib/pdf/                 Reine Funktionen: Uint8Array rein, Uint8Array raus
 lib/tools.ts             Registry, die Navigation, Startseite und Titel speist
 i18n/, messages/         next-intl: Routing, Locale-Auflösung, EN/DE-Texte
-scripts/smoke-test.mts   Funktionstest für lib/pdf (20 Prüfungen)
+scripts/smoke-test.mts   Funktionstest für lib/pdf (31 Prüfungen)
 ```
 
 Tragende Entscheidungen:
@@ -125,7 +165,13 @@ Tragende Entscheidungen:
   ohne Vorschau. Der Worker liegt unter `/pdf.worker.min.mjs`, kopiert von
   `scripts/copy-pdf-worker.mjs` in `predev`/`prebuild`.
 - **Bedienung ohne Maus.** Umsortieren geht überall auch per Schaltfläche, nicht
-  nur per Drag-and-Drop — sonst wäre die WCAG-Grundlage aus Abschnitt 6 verfehlt.
+  nur per Drag-and-Drop; im Editor verschieben die Pfeiltasten (mit Shift in
+  10-pt-Schritten) und Entf löscht — sonst wäre die WCAG-Grundlage aus
+  Abschnitt 6 verfehlt.
+- **Ein Menü statt einer Linkleiste.** Die Werkzeugliste ist aus einer
+  Inline-Navigation herausgewachsen: die deutschen Labels überfüllten die
+  Kopfzeile. Das aufklappbare Menü bleibt in jeder Sprache gleich breit und
+  trägt auch die restlichen Phase-2-Werkzeuge.
 
 ---
 
@@ -137,15 +183,19 @@ Tragende Entscheidungen:
 docker run --rm -v "$PWD":/app -w /app node:22-alpine npm run test:smoke
 ```
 
-`scripts/smoke-test.mts` — 20 Prüfungen: Zusammenfügen, Splitten (3 Modi),
-Bereichs-Parser inkl. Fehlerfällen, Seitenoperationen mit Rotation,
-Wasserzeichen, Seitenzahlen, verlustfreie Kompression sowie
-Verschlüsseln/Entschlüsseln mit richtigem und falschem Passwort.
+`scripts/smoke-test.mts` — 31 Prüfungen: Zusammenfügen, dateiübergreifendes
+Komponieren, Splitten (4 Modi), Bereichs-Parser inkl. Fehlerfällen,
+Seitenoperationen mit Rotation, Wasserzeichen, Seitenzahlen, verlustfreie
+Kompression, Annotationen (Text/Formen/Bild) sowie Verschlüsseln/Entschlüsseln
+mit richtigem und falschem Passwort.
 
 ### End-to-End im Browser
 
-Deckt ab, was ohne echtes Canvas nicht prüfbar ist: pdf.js-Worker,
-Thumbnail-Rendering, Raster-Kompression, Download-Pfad.
+14 Prüfungen für das, was ohne echtes Canvas nicht testbar ist: pdf.js-Worker,
+Thumbnail-Rendering, Raster-Kompression, Download-Pfad, dateiübergreifendes
+Sortieren im Merge-Raster, Schnittmarken im Split, Aktualisierung der
+Livevorschau, Platzieren von Text und Unterschrift — sowie die Kopfzeile auf
+Überlauf bei 360/768/1280 px in der längeren der beiden Sprachen.
 
 ```bash
 # 1. Fixture erzeugen (einmalig)

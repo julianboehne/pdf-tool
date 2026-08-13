@@ -21,6 +21,7 @@ export type PdfToolErrorKey =
   | 'emptySelection'
   | 'invalidRange'
   | 'unsupportedCharacters'
+  | 'unsupportedImage'
   | 'passwordMissing'
   | 'renderFailed'
   | 'unknown';

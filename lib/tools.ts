@@ -10,6 +10,8 @@ export const TOOL_IDS = [
   'compress',
   'watermark',
   'page-numbers',
+  'edit',
+  'sign',
   'protect',
 ] as const;
 
@@ -23,6 +25,8 @@ export const ACCENTS: Record<ToolId, string> = {
   compress: 'from-amber-500 to-orange-600',
   watermark: 'from-fuchsia-500 to-purple-600',
   'page-numbers': 'from-cyan-500 to-sky-600',
+  edit: 'from-indigo-500 to-blue-600',
+  sign: 'from-teal-500 to-emerald-600',
   protect: 'from-rose-500 to-red-600',
 };
 

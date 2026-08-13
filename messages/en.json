@@ -63,52 +63,51 @@
     "unsupportedCharacters": "The text contains characters the built-in font cannot render. Use Latin characters only.",
     "passwordMissing": "Please enter a password.",
     "renderFailed": "The pages could not be rendered. The document may be damaged.",
-    "unknown": "Something went wrong while processing this file."
+    "unknown": "Something went wrong while processing this file.",
+    "unsupportedImage": "This image format is not supported. Use PNG or JPEG."
   },
   "tools": {
     "merge": {
-      "short": "Merge",
+      "short": "Combine several files into one",
       "title": "Merge PDFs",
       "description": "Combine several PDF files into a single document, in any order you like.",
       "orderHeading": "{count, plural, one {# file} other {# files}} selected",
-      "orderHint": "Drag the rows or use the arrow buttons to change the order.",
-      "needTwo": "Add at least one more file to merge.",
-      "action": "Merge PDFs"
+      "action": "Merge PDFs",
+      "fileOrderHint": "Drag the rows or use the arrow buttons to change the file order. Newly added files are appended to the page grid below.",
+      "pagesHeading": "{count, plural, one {# page} other {# pages}} in the result",
+      "pageOrderHint": "Drag any page to move it — pages can be reordered across files, rotated or removed individually. The coloured chip shows which file a page came from.",
+      "singleFileNote": "With one file this reorders and rotates its pages. Add more files to combine them."
     },
     "split": {
-      "short": "Split",
+      "short": "Break one file into several",
       "title": "Split PDF",
       "description": "Break one document into several files — by page range, in fixed chunks, or one file per page.",
       "modeLabel": "How to split",
       "mode": {
         "ranges": "By page range",
         "everyN": "Every N pages",
-        "single": "One file per page"
+        "single": "One file per page",
+        "visual": "Visually, with split markers"
       },
       "rangesLabel": "Page ranges",
       "rangesHint": "Document has {pages} pages. Each comma-separated part becomes its own file, e.g. \"1-3, 4, 8-\".",
       "chunkLabel": "Pages per file",
       "singleHint": "This produces {count} separate files, one per page.",
-      "action": "Split PDF"
+      "action": "Split PDF",
+      "visualHint": "Click the scissors between two pages to add or remove a split point. The colour bands show which file each page ends up in.",
+      "previewHeading": "Preview",
+      "resultCount": "{count, plural, one {Produces # file} other {Produces # files}}"
     },
     "organize": {
-      "short": "Organize",
+      "short": "Delete, reorder and rotate pages",
       "title": "Organize pages",
       "description": "Delete, reorder, rotate and extract pages with a visual preview of the whole document.",
-      "rendering": "Rendering page previews",
       "gridHint": "Drag pages to reorder, or use the arrow buttons. Tick pages to extract them into a separate file.",
-      "pageAlt": "Page {number}",
-      "selectPage": "Select page {number}",
-      "rotateLeft": "Rotate left",
-      "rotateRight": "Rotate right",
-      "deletePage": "Delete page",
-      "moveLeft": "Move left",
-      "moveRight": "Move right",
       "applyAction": "Save changes",
       "extractAction": "Extract selected ({count})"
     },
     "compress": {
-      "short": "Compress",
+      "short": "Make the file smaller",
       "title": "Compress PDF",
       "description": "Reduce file size — either losslessly, or by re-rendering pages at a lower image quality.",
       "modeLabel": "Compression mode",
@@ -128,7 +127,7 @@
       "action": "Compress PDF"
     },
     "watermark": {
-      "short": "Watermark",
+      "short": "Stamp text across the pages",
       "title": "Add watermark",
       "description": "Stamp text across your pages, with adjustable size, colour, transparency and layout.",
       "textLabel": "Watermark text",
@@ -151,7 +150,7 @@
       "action": "Add watermark"
     },
     "page-numbers": {
-      "short": "Numbers",
+      "short": "Number the pages automatically",
       "title": "Add page numbers",
       "description": "Place page numbers anywhere on the page, with control over format, size and starting number.",
       "positionLabel": "Position",
@@ -181,8 +180,46 @@
         "of": "of"
       }
     },
+    "edit": {
+      "short": "Add text, boxes and images",
+      "title": "Edit PDF",
+      "description": "Add text, cover up passages, draw boxes and place images — then flatten it all into the document.",
+      "toolbarHint": "Pick a tool, then click the page to place it. Select an element to change it, drag to move, arrow keys to nudge.",
+      "placeHint": "Click the page where the element should go.",
+      "newTextPlaceholder": "New text",
+      "elementCount": "{count, plural, =0 {No elements yet} one {# element} other {# elements}}",
+      "textLabel": "Text",
+      "fontSizeLabel": "Font size",
+      "colorLabel": "Colour",
+      "boldLabel": "Bold",
+      "fillLabel": "Fill",
+      "fillOn": "Filled",
+      "strokeLabel": "Outline",
+      "strokeOn": "Outlined",
+      "opacityLabel": "Opacity",
+      "action": "Apply changes",
+      "flattenNote": "Elements are drawn into the page content, not added as annotations — they cannot be moved again after export.",
+      "add": {
+        "text": "Text",
+        "cover": "Cover up",
+        "rect": "Rectangle",
+        "ellipse": "Ellipse",
+        "image": "Image"
+      }
+    },
+    "sign": {
+      "short": "Draw a signature and place it",
+      "title": "Sign PDF",
+      "description": "Draw, type or upload your signature, then place it anywhere on the document.",
+      "createHeading": "Create your signature",
+      "signatureReady": "Your signature",
+      "placeHint": "Click the page to place the signature. Drag it to move, use the corner handle to resize, arrow keys to nudge.",
+      "placedCount": "{count, plural, =0 {Not placed yet} one {# placement} other {# placements}}",
+      "action": "Sign PDF",
+      "legalNote": "This places a visual signature. It is not a cryptographic or qualified electronic signature under eIDAS."
+    },
     "protect": {
-      "short": "Protect",
+      "short": "Set or remove a password",
       "title": "Password protect",
       "description": "Encrypt a PDF with a password and permission flags — or remove an existing password.",
       "modeLabel": "Mode",
@@ -256,5 +293,70 @@
         "body": "[TODO: email address, phone number, and the person responsible for content under § 18(2) MStV.]"
       }
     }
+  },
+  "board": {
+    "rendering": "Rendering page previews",
+    "pageAlt": "Page {number}",
+    "sourcePage": "Page {number}",
+    "fromFile": "From file {name}",
+    "selectPage": "Select page {number}",
+    "rotateLeft": "Rotate left",
+    "rotateRight": "Rotate right",
+    "deletePage": "Delete page",
+    "moveLeft": "Move left",
+    "moveRight": "Move right"
+  },
+  "preview": {
+    "heading": "Live preview",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "pageOf": "Page {current} of {total}",
+    "pageAlt": "Preview of page {number}",
+    "loading": "Building preview…",
+    "updating": "Updating…",
+    "failed": "The preview could not be rendered. The export may still work."
+  },
+  "split-preview": {
+    "pageAlt": "Page {number}",
+    "excluded": "not included",
+    "fileNumber": "File {number}",
+    "addCut": "Split after page {number}",
+    "removeCut": "Remove split after page {number}"
+  },
+  "editor": {
+    "delete": "Delete element",
+    "resize": "Resize",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "pageOf": "Page {current} of {total}",
+    "pageAlt": "Page {number}",
+    "loading": "Loading page…",
+    "kind": {
+      "text": "Text box",
+      "rect": "Rectangle",
+      "ellipse": "Ellipse",
+      "image": "Image"
+    }
+  },
+  "sign": {
+    "methodLabel": "How to create the signature",
+    "method": {
+      "draw": "Draw",
+      "type": "Type",
+      "upload": "Upload"
+    },
+    "padLabel": "Signature drawing area",
+    "padHint": "Draw with a mouse, trackpad, stylus or finger.",
+    "typedLabel": "Your name",
+    "typedPlaceholder": "Your signature",
+    "uploadLabel": "Choose an image of your signature",
+    "uploadHint": "PNG with a transparent background gives the cleanest result.",
+    "colorLabel": "Ink colour",
+    "strokeLabel": "Stroke width",
+    "useSignature": "Use this signature",
+    "clear": "Clear",
+    "redraw": "Create a different one",
+    "preview": "Your signature",
+    "placedLabel": "Placed signature"
   }
 }

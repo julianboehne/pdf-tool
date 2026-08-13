@@ -85,6 +85,48 @@ export async function renderThumbnails(
   }
 }
 
+/**
+ * Renders one page at preview resolution. Used by the live previews, which
+ * re-render on every option change and must not pay for the whole document.
+ */
+export async function renderSinglePage(
+  bytes: Uint8Array,
+  pageIndex: number,
+  maxEdge = 520,
+  options: OpenOptions = {},
+): Promise<PageThumbnail> {
+  try {
+    const doc = await openDocument(bytes, options);
+
+    try {
+      if (pageIndex < 0 || pageIndex >= doc.numPages) {
+        throw new PdfToolError('noPages');
+      }
+
+      const page = await doc.getPage(pageIndex + 1);
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({
+        scale: maxEdge / Math.max(base.width, base.height),
+      });
+
+      const { canvas } = createCanvas(viewport.width, viewport.height);
+      await page.render({ canvas, viewport, background: WHITE }).promise;
+      page.cleanup();
+
+      return {
+        pageIndex,
+        dataUrl: canvas.toDataURL('image/png'),
+        widthPt: base.width,
+        heightPt: base.height,
+      };
+    } finally {
+      await doc.destroy();
+    }
+  } catch (error) {
+    throw asRenderError(error);
+  }
+}
+
 export interface RasterOptions {
   /** Target resolution; 72 dpi means "no upscaling beyond the page size". */
   dpi: number;

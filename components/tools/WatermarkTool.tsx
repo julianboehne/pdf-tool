@@ -6,6 +6,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Field, Select, Slider, TextInput } from '@/components/ui/Field';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { LivePreview } from './LivePreview';
 import { ResultPanel } from './ResultPanel';
 import { SingleFilePicker } from './SingleFilePicker';
 import { ToolCard } from './ToolLayout';
@@ -13,7 +14,9 @@ import { useSingleFile } from './useSingleFile';
 import { useToolRun } from './useToolRun';
 import { addWatermark, type WatermarkLayout } from '@/lib/pdf/watermark';
 import { isWinAnsiEncodable } from '@/lib/pdf/text';
+import { extractPages } from '@/lib/pdf/organize';
 import { parsePageSelection } from '@/lib/pdf/ranges';
+import { PdfToolError } from '@/lib/pdf/errors';
 import { suffixFilename } from '@/lib/download';
 import type { PdfResult } from '@/lib/pdf/types';
 
@@ -32,14 +35,29 @@ export function WatermarkTool() {
   const [color, setColor] = useState('#7c3aed');
   const [allPages, setAllPages] = useState(true);
   const [ranges, setRanges] = useState('');
+  const [previewPage, setPreviewPage] = useState(0);
 
   // The standard font silently drops what it cannot encode, so flag it while
   // the user is still typing rather than after a failed run.
   const textIsDrawable = isWinAnsiEncodable(text);
 
+  /** Parsed page selection, or null while the expression is unparseable. */
+  const selection = (() => {
+    if (allPages || !pageCount) return null;
+    try {
+      return parsePageSelection(ranges, pageCount);
+    } catch (error) {
+      if (error instanceof PdfToolError) return 'invalid' as const;
+      throw error;
+    }
+  })();
+
+  const rangeIsValid = allPages || selection !== 'invalid';
+
   const startOver = () => {
     clear();
     reset();
+    setPreviewPage(0);
   };
 
   if (state.status === 'done') {
@@ -163,11 +181,57 @@ export function WatermarkTool() {
                   onChange={(event) => setRanges(event.target.value)}
                   placeholder="1-3, 7"
                   disabled={isBusy}
+                  aria-invalid={!rangeIsValid}
                 />
+                {!rangeIsValid ? (
+                  <p className="text-xs text-rose-600">{te('invalidRange')}</p>
+                ) : null}
               </Field>
             ) : null}
           </div>
         </ToolCard>
+      ) : null}
+
+      {file && pageCount ? (
+        <LivePreview
+          bytes={file.bytes}
+          pageCount={pageCount}
+          pageIndex={previewPage}
+          onPageIndexChange={setPreviewPage}
+          disabled={isBusy}
+          signature={JSON.stringify({
+            text,
+            layout,
+            fontSize,
+            opacity,
+            color,
+            allPages,
+            ranges,
+            textIsDrawable,
+            rangeIsValid,
+          })}
+          apply={async (bytes) => {
+            // Stamp a single extracted page rather than the whole document —
+            // the watermark is independent per page, so this is identical
+            // output at a fraction of the cost on long files.
+            const single = await extractPages(bytes, [previewPage]);
+
+            const applies =
+              allPages ||
+              (Array.isArray(selection) && selection.includes(previewPage));
+
+            if (!applies || !text.trim() || !textIsDrawable) return single;
+
+            return addWatermark(single, {
+              text,
+              layout,
+              fontSize,
+              opacity,
+              color,
+              pageIndices: [0],
+            });
+          }}
+        />
       ) : null}
 
       {state.status === 'error' ? (
@@ -184,7 +248,14 @@ export function WatermarkTool() {
 
       <div>
         <Button
-          disabled={!file || !pageCount || !text.trim() || !textIsDrawable || isBusy}
+          disabled={
+            !file ||
+            !pageCount ||
+            !text.trim() ||
+            !textIsDrawable ||
+            !rangeIsValid ||
+            isBusy
+          }
           onClick={() =>
             run(async () => [
               {
@@ -195,9 +266,7 @@ export function WatermarkTool() {
                   fontSize,
                   opacity,
                   color,
-                  pageIndices: allPages
-                    ? undefined
-                    : parsePageSelection(ranges, pageCount!),
+                  pageIndices: Array.isArray(selection) ? selection : undefined,
                 }),
               },
             ])

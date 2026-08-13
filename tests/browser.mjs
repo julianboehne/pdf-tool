@@ -112,16 +112,157 @@ await check('compress (rasterize) embeds JPEG streams', async () => {
   }
 });
 
-await check('merge combines two files client-side', async () => {
+await check('merge shows every page of every file on one board', async () => {
   await page.goto(`${BASE}/en/merge`, { waitUntil: 'networkidle' });
   await page.setInputFiles('input[type=file]', [FIXTURE, FIXTURE]);
-  await page.waitForSelector('li', { timeout: 20000 });
+
+  // Two 5-page files -> 10 tiles, each carrying a source chip.
+  await page.waitForFunction(
+    () => document.querySelectorAll('ul li img').length === 10,
+    null,
+    { timeout: 60000 },
+  );
+
+  const chips = await page.evaluate(() =>
+    [...document.querySelectorAll('ul li span[title^="From file"]')].map((el) =>
+      el.textContent.trim(),
+    ),
+  );
+
+  if (chips.length !== 10) {
+    throw new Error(`expected 10 source chips, got ${chips.length}`);
+  }
+  if (new Set(chips).size !== 2) {
+    throw new Error(`expected 2 distinct source chips, got ${[...new Set(chips)]}`);
+  }
+});
+
+await check('merge reorders pages across files and drops one', async () => {
+  // Move the first page of file 2 to the front, then delete one page.
+  await page.getByLabel('Move left').nth(5).click();
+  await page.getByLabel('Delete page').first().click();
+
+  await page.waitForFunction(
+    () => document.querySelectorAll('ul li img').length === 9,
+    null,
+    { timeout: 20000 },
+  );
 
   const bytes = await runAndDownload('Merge PDFs');
   assertPdf(bytes);
 
   const pages = countPages(bytes);
-  if (pages !== 10) throw new Error(`expected 10 page objects, got ${pages}`);
+  if (pages !== 9) throw new Error(`expected 9 page objects, got ${pages}`);
+});
+
+await check('split cut markers drive the number of output files', async () => {
+  await page.goto(`${BASE}/en/split`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.waitForSelector('#split-mode', { timeout: 20000 });
+
+  // Visual mode is the default; wait for the preview to finish rendering.
+  await page.waitForSelector('button[aria-label^="Split after page"]', {
+    timeout: 60000,
+  });
+
+  const beforeText = await page.locator('text=Produces 1 file').count();
+  if (beforeText !== 1) throw new Error('expected a single output file before cutting');
+
+  await page.getByLabel('Split after page 2').click();
+  await page.getByLabel('Split after page 4').click();
+  await page.waitForSelector('text=Produces 3 files', { timeout: 20000 });
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 45000 }),
+    page
+      .getByRole('button', { name: 'Split PDF' })
+      .click()
+      .then(() =>
+        page.getByRole('button', { name: /Download all \(3\)/ }).click(),
+      ),
+  ]);
+
+  const name = download.suggestedFilename();
+  if (!name.endsWith('.zip')) throw new Error(`expected a zip, got ${name}`);
+});
+
+await check('watermark shows a live preview of the real result', async () => {
+  await page.goto(`${BASE}/en/watermark`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+  await page.waitForSelector('#wm-text', { timeout: 20000 });
+
+  const preview = page.getByAltText(/Preview of page 1/);
+  await preview.waitFor({ timeout: 60000 });
+
+  const before = await preview.getAttribute('src');
+
+  // Changing an option must produce a different rendering.
+  await page.fill('#wm-text', 'GEPRUEFT');
+  await page.waitForFunction(
+    (previous) => {
+      const img = document.querySelector('img[alt^="Preview of page"]');
+      return img && img.src !== previous;
+    },
+    before,
+    { timeout: 60000 },
+  );
+});
+
+await check('editor places a text element and burns it into the page', async () => {
+  await page.goto(`${BASE}/en/edit`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+
+  const stage = page.getByAltText('Page 1').first();
+  await stage.waitFor({ timeout: 60000 });
+
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.locator('div:has(> img[alt="Page 1"])').first().click({
+    position: { x: 120, y: 200 },
+  });
+
+  await page.waitForSelector('#edit-text', { timeout: 20000 });
+  await page.fill('#edit-text', 'Approved by QA');
+
+  const bytes = await runAndDownload('Apply changes');
+  assertPdf(bytes);
+
+  const pages = countPages(bytes);
+  if (pages !== 5) throw new Error(`expected 5 page objects, got ${pages}`);
+});
+
+await check('signature is drawn, placed and written into the PDF', async () => {
+  await page.goto(`${BASE}/en/sign`, { waitUntil: 'networkidle' });
+  await page.setInputFiles('input[type=file]', FIXTURE);
+
+  const pad = page.getByLabel('Signature drawing area');
+  await pad.waitFor({ timeout: 30000 });
+
+  // Draw a short stroke on the pad.
+  const box = await pad.boundingBox();
+  await page.mouse.move(box.x + 40, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + box.height / 2 - 25, { steps: 8 });
+  await page.mouse.move(box.x + 200, box.y + box.height / 2 + 20, { steps: 8 });
+  await page.mouse.up();
+
+  await page.getByRole('button', { name: 'Use this signature' }).click();
+  await page.getByAltText('Your signature').waitFor({ timeout: 20000 });
+
+  const stage = page.getByAltText('Page 1').first();
+  await stage.waitFor({ timeout: 60000 });
+
+  await page.locator('div:has(> img[alt="Page 1"])').first().click({
+    position: { x: 200, y: 400 },
+  });
+  await page.getByLabel('Placed signature').waitFor({ timeout: 20000 });
+
+  const bytes = await runAndDownload('Sign PDF');
+  assertPdf(bytes);
+
+  // The trimmed signature is embedded as a PNG image XObject.
+  if (!bytes.includes(Buffer.from('/Image'))) {
+    throw new Error('no image XObject in the signed output');
+  }
 });
 
 await check('protect writes an encryption dictionary', async () => {
@@ -145,6 +286,46 @@ await check('German locale renders German UI', async () => {
   const heading = await page.locator('h1').first().innerText();
   if (!heading.includes('Wasserzeichen')) {
     throw new Error(`unexpected heading: ${heading}`);
+  }
+});
+
+await check('German header fits without horizontal overflow', async () => {
+  // The German tool labels are what pushed the old inline nav over the edge,
+  // so this asserts the header at the narrowest common viewport and a desktop
+  // one, in the longer of the two languages.
+  for (const width of [360, 768, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`${BASE}/de/merge`, { waitUntil: 'networkidle' });
+
+    const overflow = await page.evaluate(() => {
+      const root = document.documentElement;
+      return root.scrollWidth - root.clientWidth;
+    });
+
+    if (overflow > 0) {
+      throw new Error(`page scrolls horizontally by ${overflow}px at ${width}px`);
+    }
+  }
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+});
+
+await check('tools menu opens, lists every tool and closes on Escape', async () => {
+  await page.goto(`${BASE}/de`, { waitUntil: 'networkidle' });
+
+  const trigger = page.getByRole('button', { name: 'Werkzeuge' });
+  if ((await trigger.getAttribute('aria-expanded')) !== 'false') {
+    throw new Error('menu should start collapsed');
+  }
+
+  await trigger.click();
+  const links = page.locator('#' + (await trigger.getAttribute('aria-controls')) + ' a');
+  const count = await links.count();
+  if (count !== 9) throw new Error(`expected 9 tools in the menu, got ${count}`);
+
+  await page.keyboard.press('Escape');
+  if ((await trigger.getAttribute('aria-expanded')) !== 'false') {
+    throw new Error('Escape did not close the menu');
   }
 });
 

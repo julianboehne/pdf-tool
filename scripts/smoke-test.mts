@@ -16,6 +16,8 @@ import { addWatermark } from '../lib/pdf/watermark.js';
 import { addPageNumbers } from '../lib/pdf/pageNumbers.js';
 import { protectPdf, removePassword } from '../lib/pdf/protect.js';
 import { compressPdf } from '../lib/pdf/compress.js';
+import { composePdf } from '../lib/pdf/compose.js';
+import { applyAnnotations, type Annotation } from '../lib/pdf/annotate.js';
 import { parsePageRanges, parsePageSelection } from '../lib/pdf/ranges.js';
 import { isWinAnsiEncodable } from '../lib/pdf/text.js';
 import { getPageCount, isEncrypted, loadPdf } from '../lib/pdf/load.js';
@@ -272,6 +274,173 @@ await test('removePassword rejects a wrong password', async () => {
   });
 
   await expectError('wrongPassword', () => removePassword(encrypted, 'falsch'));
+});
+
+await test('compose interleaves pages from several documents', async () => {
+  const sa = source(a, 'a.pdf');
+  const sb = source(b, 'b.pdf');
+
+  const output = await composePdf(
+    [sa, sb],
+    [
+      { sourceId: sa.id, sourceIndex: 4, rotation: 90 },
+      { sourceId: sb.id, sourceIndex: 0, rotation: 0 },
+      { sourceId: sa.id, sourceIndex: 0, rotation: 180 },
+      { sourceId: sb.id, sourceIndex: 2, rotation: 0 },
+    ],
+  );
+
+  const doc = await loadPdf(output);
+  assert.equal(doc.getPageCount(), 4);
+  assert.equal(doc.getPage(0).getRotation().angle, 90);
+  assert.equal(doc.getPage(2).getRotation().angle, 180);
+});
+
+await test('compose can repeat the same source page', async () => {
+  const sa = source(a, 'a.pdf');
+
+  const output = await composePdf(
+    [sa],
+    [
+      { sourceId: sa.id, sourceIndex: 1, rotation: 0 },
+      { sourceId: sa.id, sourceIndex: 1, rotation: 90 },
+    ],
+  );
+
+  const doc = await loadPdf(output);
+  assert.equal(doc.getPageCount(), 2);
+  assert.equal(doc.getPage(0).getRotation().angle, 0);
+  assert.equal(doc.getPage(1).getRotation().angle, 90);
+});
+
+await test('compose rejects an unknown source id', async () => {
+  await expectError('emptySelection', () =>
+    composePdf([source(a, 'a.pdf')], [
+      { sourceId: 'nope', sourceIndex: 0, rotation: 0 },
+    ]),
+  );
+});
+
+await test('split groups can be defined by visual cut points', async () => {
+  const parts = await splitPdf(a, 'a.pdf', { mode: 'visual', cuts: [1, 3] });
+  assert.equal(parts.length, 3);
+  assert.deepEqual(
+    await Promise.all(parts.map((p) => getPageCount(p.bytes))),
+    [2, 2, 1],
+  );
+});
+
+await test('visual split with no cuts yields the whole document', async () => {
+  const parts = await splitPdf(a, 'a.pdf', { mode: 'visual', cuts: [] });
+  assert.equal(parts.length, 1);
+  assert.equal(await getPageCount(parts[0].bytes), 5);
+});
+
+await test('annotations are drawn onto the page', async () => {
+  // A 1x1 transparent PNG — enough to exercise the embed path.
+  const pngDataUrl =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+  const annotations: Annotation[] = [
+    {
+      id: 'text-1',
+      type: 'text',
+      page: 0,
+      x: 60,
+      y: 600,
+      width: 300,
+      height: 60,
+      text: 'Nachträglich ergänzt',
+      fontSize: 14,
+      color: '#111827',
+      bold: true,
+    },
+    {
+      id: 'cover-1',
+      type: 'rect',
+      page: 1,
+      x: 50,
+      y: 700,
+      width: 220,
+      height: 24,
+      fill: '#ffffff',
+      stroke: null,
+      strokeWidth: 1,
+      opacity: 1,
+    },
+    {
+      id: 'ellipse-1',
+      type: 'ellipse',
+      page: 2,
+      x: 100,
+      y: 400,
+      width: 180,
+      height: 120,
+      fill: null,
+      stroke: '#dc2626',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    {
+      id: 'sig-1',
+      type: 'image',
+      page: 4,
+      x: 320,
+      y: 90,
+      width: 170,
+      height: 60,
+      dataUrl: pngDataUrl,
+    },
+  ];
+
+  const output = await applyAnnotations(a, annotations);
+  const doc = await loadPdf(output);
+
+  assert.equal(doc.getPageCount(), 5);
+  // Page geometry must survive untouched — annotations draw, they do not resize.
+  assert.equal(Math.round(doc.getPage(0).getSize().width), 595);
+  assert.ok(output.byteLength > a.byteLength);
+});
+
+await test('annotations reject text the standard font cannot encode', async () => {
+  await expectError('unsupportedCharacters', () =>
+    applyAnnotations(a, [
+      {
+        id: 'text-bad',
+        type: 'text',
+        page: 0,
+        x: 50,
+        y: 500,
+        width: 200,
+        height: 40,
+        text: '署名',
+        fontSize: 14,
+        color: '#000000',
+        bold: false,
+      },
+    ]),
+  );
+});
+
+await test('annotations reject an unsupported image format', async () => {
+  await expectError('unsupportedImage', () =>
+    applyAnnotations(a, [
+      {
+        id: 'img-bad',
+        type: 'image',
+        page: 0,
+        x: 10,
+        y: 10,
+        width: 50,
+        height: 50,
+        dataUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=',
+      },
+    ]),
+  );
+});
+
+await test('applying no annotations is an error, not a silent no-op', async () => {
+  await expectError('emptySelection', () => applyAnnotations(a, []));
 });
 
 await test('a non-PDF input is reported as invalid', async () => {

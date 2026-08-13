@@ -30,6 +30,12 @@ export interface PageNumberOptions {
    * 'von'}`. Supplied by the UI so the stamped text matches the site language.
    */
   words?: { page: string; of: string };
+  /**
+   * Last number shown by the `ofTotal` / `pageOfTotal` formats, overriding the
+   * value derived from the document. The live preview stamps a single extracted
+   * page and needs it to read "3 / 12", not "1 / 1".
+   */
+  totalOverride?: number;
 }
 
 export async function addPageNumbers(
@@ -47,7 +53,9 @@ export async function addPageNumbers(
     const pages = doc.getPages();
 
     const firstIndex = options.skipFirstPage ? 1 : 0;
-    const total = pages.length - firstIndex;
+    const lastNumber =
+      options.totalOverride ??
+      pages.length - firstIndex + options.startAt - 1;
 
     pages.forEach((page, index) => {
       if (index < firstIndex) return;
@@ -56,7 +64,7 @@ export async function addPageNumbers(
       const label = formatLabel(
         options.format,
         number,
-        total + options.startAt - 1,
+        lastNumber,
         options.words,
       );
 

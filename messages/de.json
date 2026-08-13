@@ -63,52 +63,51 @@
     "unsupportedCharacters": "Der Text enthält Zeichen, die die eingebaute Schriftart nicht darstellen kann. Verwenden Sie nur lateinische Zeichen.",
     "passwordMissing": "Bitte geben Sie ein Passwort ein.",
     "renderFailed": "Die Seiten konnten nicht gerendert werden. Das Dokument ist möglicherweise beschädigt.",
-    "unknown": "Bei der Verarbeitung dieser Datei ist ein Fehler aufgetreten."
+    "unknown": "Bei der Verarbeitung dieser Datei ist ein Fehler aufgetreten.",
+    "unsupportedImage": "Dieses Bildformat wird nicht unterstützt. Verwenden Sie PNG oder JPEG."
   },
   "tools": {
     "merge": {
-      "short": "Zusammenfügen",
+      "short": "Mehrere Dateien zu einer verbinden",
       "title": "PDFs zusammenfügen",
       "description": "Mehrere PDF-Dateien in beliebiger Reihenfolge zu einem Dokument verbinden.",
       "orderHeading": "{count, plural, one {# Datei} other {# Dateien}} ausgewählt",
-      "orderHint": "Ziehen Sie die Zeilen oder nutzen Sie die Pfeiltasten, um die Reihenfolge zu ändern.",
-      "needTwo": "Fügen Sie mindestens eine weitere Datei hinzu.",
-      "action": "PDFs zusammenfügen"
+      "action": "PDFs zusammenfügen",
+      "fileOrderHint": "Ziehen Sie die Zeilen oder nutzen Sie die Pfeiltasten, um die Dateireihenfolge zu ändern. Neu hinzugefügte Dateien werden unten an das Seitenraster angehängt.",
+      "pagesHeading": "{count, plural, one {# Seite} other {# Seiten}} im Ergebnis",
+      "pageOrderHint": "Ziehen Sie einzelne Seiten, um sie zu verschieben — auch dateiübergreifend. Seiten lassen sich einzeln drehen oder entfernen. Der farbige Chip zeigt die Herkunftsdatei.",
+      "singleFileNote": "Bei einer Datei werden nur deren Seiten sortiert und gedreht. Fügen Sie weitere Dateien hinzu, um sie zu verbinden."
     },
     "split": {
-      "short": "Teilen",
+      "short": "Eine Datei in mehrere aufteilen",
       "title": "PDF teilen",
       "description": "Ein Dokument in mehrere Dateien aufteilen — nach Seitenbereich, in festen Blöcken oder seitenweise.",
       "modeLabel": "Aufteilung",
       "mode": {
         "ranges": "Nach Seitenbereich",
         "everyN": "Alle N Seiten",
-        "single": "Eine Datei pro Seite"
+        "single": "Eine Datei pro Seite",
+        "visual": "Visuell, mit Trennmarken"
       },
       "rangesLabel": "Seitenbereiche",
       "rangesHint": "Das Dokument hat {pages} Seiten. Jeder durch Komma getrennte Teil wird zu einer eigenen Datei, z. B. „1-3, 4, 8-“.",
       "chunkLabel": "Seiten pro Datei",
       "singleHint": "Ergibt {count} einzelne Dateien, eine pro Seite.",
-      "action": "PDF teilen"
+      "action": "PDF teilen",
+      "visualHint": "Klicken Sie auf die Schere zwischen zwei Seiten, um eine Trennung zu setzen oder aufzuheben. Die Farbbänder zeigen, in welche Datei jede Seite kommt.",
+      "previewHeading": "Vorschau",
+      "resultCount": "{count, plural, one {Ergibt # Datei} other {Ergibt # Dateien}}"
     },
     "organize": {
-      "short": "Sortieren",
+      "short": "Seiten löschen, sortieren und drehen",
       "title": "Seiten organisieren",
       "description": "Seiten löschen, umsortieren, drehen und extrahieren — mit visueller Vorschau des gesamten Dokuments.",
-      "rendering": "Seitenvorschauen werden erzeugt",
       "gridHint": "Ziehen Sie Seiten zum Umsortieren oder nutzen Sie die Pfeiltasten. Markierte Seiten lassen sich in eine eigene Datei extrahieren.",
-      "pageAlt": "Seite {number}",
-      "selectPage": "Seite {number} auswählen",
-      "rotateLeft": "Nach links drehen",
-      "rotateRight": "Nach rechts drehen",
-      "deletePage": "Seite löschen",
-      "moveLeft": "Nach links verschieben",
-      "moveRight": "Nach rechts verschieben",
       "applyAction": "Änderungen speichern",
       "extractAction": "Auswahl extrahieren ({count})"
     },
     "compress": {
-      "short": "Komprimieren",
+      "short": "Dateigröße verringern",
       "title": "PDF komprimieren",
       "description": "Dateigröße reduzieren — verlustfrei oder durch Neuberechnung der Seiten mit geringerer Bildqualität.",
       "modeLabel": "Kompressionsmodus",
@@ -128,7 +127,7 @@
       "action": "PDF komprimieren"
     },
     "watermark": {
-      "short": "Wasserzeichen",
+      "short": "Text über die Seiten legen",
       "title": "Wasserzeichen hinzufügen",
       "description": "Text über die Seiten legen — mit einstellbarer Größe, Farbe, Transparenz und Anordnung.",
       "textLabel": "Text des Wasserzeichens",
@@ -151,7 +150,7 @@
       "action": "Wasserzeichen hinzufügen"
     },
     "page-numbers": {
-      "short": "Seitenzahlen",
+      "short": "Seiten automatisch nummerieren",
       "title": "Seitenzahlen hinzufügen",
       "description": "Seitenzahlen frei positionieren — mit Kontrolle über Format, Größe und Startnummer.",
       "positionLabel": "Position",
@@ -181,8 +180,46 @@
         "of": "von"
       }
     },
+    "edit": {
+      "short": "Text, Kästen und Bilder ergänzen",
+      "title": "PDF bearbeiten",
+      "description": "Text ergänzen, Passagen abdecken, Kästen zeichnen und Bilder platzieren — anschließend fest ins Dokument übernehmen.",
+      "toolbarHint": "Werkzeug wählen, dann auf die Seite klicken. Element anklicken zum Ändern, ziehen zum Verschieben, Pfeiltasten für Feinjustierung.",
+      "placeHint": "Klicken Sie auf die Stelle, an der das Element erscheinen soll.",
+      "newTextPlaceholder": "Neuer Text",
+      "elementCount": "{count, plural, =0 {Noch keine Elemente} one {# Element} other {# Elemente}}",
+      "textLabel": "Text",
+      "fontSizeLabel": "Schriftgröße",
+      "colorLabel": "Farbe",
+      "boldLabel": "Fett",
+      "fillLabel": "Füllung",
+      "fillOn": "Gefüllt",
+      "strokeLabel": "Kontur",
+      "strokeOn": "Mit Kontur",
+      "opacityLabel": "Deckkraft",
+      "action": "Änderungen übernehmen",
+      "flattenNote": "Elemente werden fest in den Seiteninhalt gezeichnet, nicht als Kommentare angehängt — nach dem Export sind sie nicht mehr verschiebbar.",
+      "add": {
+        "text": "Text",
+        "cover": "Abdecken",
+        "rect": "Rechteck",
+        "ellipse": "Ellipse",
+        "image": "Bild"
+      }
+    },
+    "sign": {
+      "short": "Unterschrift zeichnen und platzieren",
+      "title": "PDF signieren",
+      "description": "Unterschrift zeichnen, tippen oder hochladen und anschließend frei auf dem Dokument platzieren.",
+      "createHeading": "Unterschrift erstellen",
+      "signatureReady": "Ihre Unterschrift",
+      "placeHint": "Klicken Sie auf die Seite, um die Unterschrift zu setzen. Ziehen zum Verschieben, Eckpunkt zum Skalieren, Pfeiltasten für Feinjustierung.",
+      "placedCount": "{count, plural, =0 {Noch nicht platziert} one {# Platzierung} other {# Platzierungen}}",
+      "action": "PDF signieren",
+      "legalNote": "Dies setzt eine visuelle Unterschrift. Es ist keine kryptografische oder qualifizierte elektronische Signatur nach eIDAS."
+    },
     "protect": {
-      "short": "Schützen",
+      "short": "Passwort setzen oder entfernen",
       "title": "Passwortschutz",
       "description": "Ein PDF mit Passwort und Berechtigungen verschlüsseln — oder ein bestehendes Passwort entfernen.",
       "modeLabel": "Modus",
@@ -256,5 +293,70 @@
         "body": "[TODO: E-Mail-Adresse, Telefonnummer sowie inhaltlich Verantwortlicher nach § 18 Abs. 2 MStV.]"
       }
     }
+  },
+  "board": {
+    "rendering": "Seitenvorschauen werden erzeugt",
+    "pageAlt": "Seite {number}",
+    "sourcePage": "Seite {number}",
+    "fromFile": "Aus Datei {name}",
+    "selectPage": "Seite {number} auswählen",
+    "rotateLeft": "Nach links drehen",
+    "rotateRight": "Nach rechts drehen",
+    "deletePage": "Seite löschen",
+    "moveLeft": "Nach links verschieben",
+    "moveRight": "Nach rechts verschieben"
+  },
+  "preview": {
+    "heading": "Live-Vorschau",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
+    "pageOf": "Seite {current} von {total}",
+    "pageAlt": "Vorschau von Seite {number}",
+    "loading": "Vorschau wird erstellt…",
+    "updating": "Wird aktualisiert…",
+    "failed": "Die Vorschau konnte nicht erzeugt werden. Der Export kann trotzdem funktionieren."
+  },
+  "split-preview": {
+    "pageAlt": "Seite {number}",
+    "excluded": "nicht enthalten",
+    "fileNumber": "Datei {number}",
+    "addCut": "Nach Seite {number} trennen",
+    "removeCut": "Trennung nach Seite {number} aufheben"
+  },
+  "editor": {
+    "delete": "Element löschen",
+    "resize": "Größe ändern",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
+    "pageOf": "Seite {current} von {total}",
+    "pageAlt": "Seite {number}",
+    "loading": "Seite wird geladen…",
+    "kind": {
+      "text": "Textfeld",
+      "rect": "Rechteck",
+      "ellipse": "Ellipse",
+      "image": "Bild"
+    }
+  },
+  "sign": {
+    "methodLabel": "Art der Unterschrift",
+    "method": {
+      "draw": "Zeichnen",
+      "type": "Tippen",
+      "upload": "Hochladen"
+    },
+    "padLabel": "Zeichenfläche für die Unterschrift",
+    "padHint": "Zeichnen Sie mit Maus, Trackpad, Stift oder Finger.",
+    "typedLabel": "Ihr Name",
+    "typedPlaceholder": "Ihre Unterschrift",
+    "uploadLabel": "Bild Ihrer Unterschrift auswählen",
+    "uploadHint": "Ein PNG mit transparentem Hintergrund liefert das sauberste Ergebnis.",
+    "colorLabel": "Stiftfarbe",
+    "strokeLabel": "Strichstärke",
+    "useSignature": "Diese Unterschrift verwenden",
+    "clear": "Löschen",
+    "redraw": "Neu erstellen",
+    "preview": "Ihre Unterschrift",
+    "placedLabel": "Platzierte Unterschrift"
   }
 }

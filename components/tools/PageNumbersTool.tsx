@@ -6,6 +6,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Checkbox, Field, Select, Slider, TextInput } from '@/components/ui/Field';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { LivePreview } from './LivePreview';
 import { ResultPanel } from './ResultPanel';
 import { SingleFilePicker } from './SingleFilePicker';
 import { ToolCard } from './ToolLayout';
@@ -16,6 +17,7 @@ import {
   type NumberFormat,
   type NumberPosition,
 } from '@/lib/pdf/pageNumbers';
+import { extractPages } from '@/lib/pdf/organize';
 import { suffixFilename } from '@/lib/download';
 import type { PdfResult } from '@/lib/pdf/types';
 
@@ -43,10 +45,20 @@ export function PageNumbersTool() {
   const [color, setColor] = useState('#334155');
   const [startAt, setStartAt] = useState(1);
   const [skipFirstPage, setSkipFirstPage] = useState(false);
+  const [previewPage, setPreviewPage] = useState(0);
+
+  const words = { page: t('word.page'), of: t('word.of') };
+
+  // Mirrors the numbering maths in lib/pdf/pageNumbers.ts so the preview of a
+  // single extracted page shows the number that page will really carry.
+  const firstNumbered = skipFirstPage ? 1 : 0;
+  const lastNumber = (pageCount ?? 1) - firstNumbered + startAt - 1;
+  const numberOnPreviewPage = startAt + (previewPage - firstNumbered);
 
   const startOver = () => {
     clear();
     reset();
+    setPreviewPage(0);
   };
 
   if (state.status === 'done') {
@@ -176,6 +188,43 @@ export function PageNumbersTool() {
         </ToolCard>
       ) : null}
 
+      {file && pageCount ? (
+        <LivePreview
+          bytes={file.bytes}
+          pageCount={pageCount}
+          pageIndex={previewPage}
+          onPageIndexChange={setPreviewPage}
+          disabled={isBusy}
+          signature={JSON.stringify({
+            position,
+            format,
+            fontSize,
+            margin,
+            color,
+            startAt,
+            skipFirstPage,
+          })}
+          apply={async (bytes) => {
+            const single = await extractPages(bytes, [previewPage]);
+
+            // Pages before the first numbered one stay blank.
+            if (previewPage < firstNumbered) return single;
+
+            return addPageNumbers(single, {
+              position,
+              format,
+              fontSize,
+              margin,
+              color,
+              startAt: numberOnPreviewPage,
+              skipFirstPage: false,
+              words,
+              totalOverride: lastNumber,
+            });
+          }}
+        />
+      ) : null}
+
       {state.status === 'error' ? (
         <Alert tone="error">{te(state.error)}</Alert>
       ) : null}
@@ -203,7 +252,7 @@ export function PageNumbersTool() {
                   color,
                   startAt,
                   skipFirstPage,
-                  words: { page: t('word.page'), of: t('word.of') },
+                  words,
                 }),
               },
             ])
