@@ -1,0 +1,260 @@
+{
+  "site": {
+    "name": "PDF Tool",
+    "description": "PDFs zusammenfügen, teilen, komprimieren und schützen — direkt im Browser. Ihre Dateien verlassen Ihr Gerät nicht."
+  },
+  "nav": {
+    "tools": "Werkzeuge"
+  },
+  "locale": {
+    "label": "Sprache"
+  },
+  "common": {
+    "processing": "Verarbeitung läuft"
+  },
+  "home": {
+    "headline": "Alle PDF-Werkzeuge — direkt im Browser",
+    "subline": "PDFs zusammenfügen, teilen, sortieren, komprimieren, mit Wasserzeichen versehen und schützen. Alles läuft lokal auf Ihrem Gerät: nichts wird hochgeladen, nichts gespeichert.",
+    "privacyBadge": "Verarbeitung ausschließlich auf Ihrem Gerät",
+    "usp": {
+      "local": {
+        "title": "Läuft lokal",
+        "text": "Die gesamte Verarbeitung findet über WebAssembly und JavaScript im Browser statt — ohne Umweg über einen Server."
+      },
+      "noUpload": {
+        "title": "Kein Upload, keine Speicherung",
+        "text": "Ihre Dokumente werden nicht übertragen, nicht zwischengespeichert und nicht auf einem Server abgelegt."
+      },
+      "free": {
+        "title": "Kostenlos nutzbar",
+        "text": "Ohne Konto, ohne Seitenlimit, ohne aufgezwungenes Wasserzeichen im Ergebnis."
+      }
+    }
+  },
+  "dropzone": {
+    "chooseFile": "PDF-Datei auswählen",
+    "chooseFiles": "PDF-Dateien auswählen",
+    "or": "oder Dateien hierher ziehen",
+    "privacy": "Dateien bleiben auf Ihrem Gerät — es wird nichts hochgeladen."
+  },
+  "fileList": {
+    "dragHint": "Zum Umsortieren ziehen",
+    "moveUp": "{name} nach oben verschieben",
+    "moveDown": "{name} nach unten verschieben",
+    "remove": "{name} entfernen",
+    "change": "Ändern",
+    "pages": "{count, plural, one {# Seite} other {# Seiten}}"
+  },
+  "result": {
+    "heading": "{count, plural, one {Ihre Datei ist fertig} other {Ihre # Dateien sind fertig}}",
+    "summary": "Gesamtgröße: {size}",
+    "download": "Herunterladen",
+    "downloadZip": "Alle ({count}) als ZIP herunterladen",
+    "startOver": "Von vorn beginnen"
+  },
+  "errors": {
+    "invalidPdf": "Diese Datei konnte nicht als PDF gelesen werden. Sie ist möglicherweise beschädigt oder kein PDF.",
+    "encrypted": "Dieses PDF ist passwortgeschützt. Entfernen Sie das Passwort zuerst mit dem Werkzeug „Schützen“.",
+    "wrongPassword": "Das Passwort ist falsch.",
+    "notEncrypted": "Dieses PDF ist nicht passwortgeschützt.",
+    "noPages": "Dieses PDF enthält keine Seiten.",
+    "emptySelection": "Nichts ausgewählt. Wählen Sie mindestens eine Datei oder Seite.",
+    "invalidRange": "Der Seitenbereich konnte nicht gelesen werden. Verwenden Sie ein Format wie „1-3, 5, 8-“.",
+    "unsupportedCharacters": "Der Text enthält Zeichen, die die eingebaute Schriftart nicht darstellen kann. Verwenden Sie nur lateinische Zeichen.",
+    "passwordMissing": "Bitte geben Sie ein Passwort ein.",
+    "renderFailed": "Die Seiten konnten nicht gerendert werden. Das Dokument ist möglicherweise beschädigt.",
+    "unknown": "Bei der Verarbeitung dieser Datei ist ein Fehler aufgetreten."
+  },
+  "tools": {
+    "merge": {
+      "short": "Zusammenfügen",
+      "title": "PDFs zusammenfügen",
+      "description": "Mehrere PDF-Dateien in beliebiger Reihenfolge zu einem Dokument verbinden.",
+      "orderHeading": "{count, plural, one {# Datei} other {# Dateien}} ausgewählt",
+      "orderHint": "Ziehen Sie die Zeilen oder nutzen Sie die Pfeiltasten, um die Reihenfolge zu ändern.",
+      "needTwo": "Fügen Sie mindestens eine weitere Datei hinzu.",
+      "action": "PDFs zusammenfügen"
+    },
+    "split": {
+      "short": "Teilen",
+      "title": "PDF teilen",
+      "description": "Ein Dokument in mehrere Dateien aufteilen — nach Seitenbereich, in festen Blöcken oder seitenweise.",
+      "modeLabel": "Aufteilung",
+      "mode": {
+        "ranges": "Nach Seitenbereich",
+        "everyN": "Alle N Seiten",
+        "single": "Eine Datei pro Seite"
+      },
+      "rangesLabel": "Seitenbereiche",
+      "rangesHint": "Das Dokument hat {pages} Seiten. Jeder durch Komma getrennte Teil wird zu einer eigenen Datei, z. B. „1-3, 4, 8-“.",
+      "chunkLabel": "Seiten pro Datei",
+      "singleHint": "Ergibt {count} einzelne Dateien, eine pro Seite.",
+      "action": "PDF teilen"
+    },
+    "organize": {
+      "short": "Sortieren",
+      "title": "Seiten organisieren",
+      "description": "Seiten löschen, umsortieren, drehen und extrahieren — mit visueller Vorschau des gesamten Dokuments.",
+      "rendering": "Seitenvorschauen werden erzeugt",
+      "gridHint": "Ziehen Sie Seiten zum Umsortieren oder nutzen Sie die Pfeiltasten. Markierte Seiten lassen sich in eine eigene Datei extrahieren.",
+      "pageAlt": "Seite {number}",
+      "selectPage": "Seite {number} auswählen",
+      "rotateLeft": "Nach links drehen",
+      "rotateRight": "Nach rechts drehen",
+      "deletePage": "Seite löschen",
+      "moveLeft": "Nach links verschieben",
+      "moveRight": "Nach rechts verschieben",
+      "applyAction": "Änderungen speichern",
+      "extractAction": "Auswahl extrahieren ({count})"
+    },
+    "compress": {
+      "short": "Komprimieren",
+      "title": "PDF komprimieren",
+      "description": "Dateigröße reduzieren — verlustfrei oder durch Neuberechnung der Seiten mit geringerer Bildqualität.",
+      "modeLabel": "Kompressionsmodus",
+      "mode": {
+        "rasterize": "Stark (Seiten als Bilder neu rendern)",
+        "lossless": "Verlustfrei (nur Umstrukturierung)"
+      },
+      "rasterWarning": "Dieser Modus wandelt jede Seite in ein Bild um. Die Dateigröße sinkt deutlich, das Ergebnis enthält jedoch keinen markier- oder durchsuchbaren Text mehr.",
+      "losslessNote": "Schreibt die Datei mit Objekt- und Querverweis-Streams neu. Text und Bilder bleiben unverändert, die Ersparnis hängt daher vom Original ab — meist 5-20 %.",
+      "qualityLabel": "Bildqualität",
+      "qualityHint": "Geringere Qualität bedeutet kleinere Datei und sichtbarere JPEG-Artefakte.",
+      "dpiLabel": "Auflösung",
+      "dpiHint": "150 dpi genügen zum Lesen am Bildschirm, 300 dpi für den Druck.",
+      "grayscaleLabel": "In Graustufen umwandeln",
+      "savings": "Um {percent} % reduziert — von {before} auf {after}.",
+      "noSavings": "Keine Verkleinerung erreicht ({before} → {after}). Versuchen Sie den starken Modus oder eine geringere Qualität.",
+      "action": "PDF komprimieren"
+    },
+    "watermark": {
+      "short": "Wasserzeichen",
+      "title": "Wasserzeichen hinzufügen",
+      "description": "Text über die Seiten legen — mit einstellbarer Größe, Farbe, Transparenz und Anordnung.",
+      "textLabel": "Text des Wasserzeichens",
+      "layoutLabel": "Anordnung",
+      "layout": {
+        "diagonal": "Diagonal, zentriert",
+        "horizontal": "Horizontal, zentriert",
+        "tile": "Gekachelt über die Seite"
+      },
+      "sizeLabel": "Schriftgröße",
+      "opacityLabel": "Deckkraft",
+      "colorLabel": "Farbe",
+      "scopeLabel": "Anwenden auf",
+      "scope": {
+        "all": "Alle Seiten",
+        "range": "Ausgewählte Seiten"
+      },
+      "rangeLabel": "Seiten",
+      "rangeHint": "Das Dokument hat {pages} Seiten. Beispiel: „1-3, 7“.",
+      "action": "Wasserzeichen hinzufügen"
+    },
+    "page-numbers": {
+      "short": "Seitenzahlen",
+      "title": "Seitenzahlen hinzufügen",
+      "description": "Seitenzahlen frei positionieren — mit Kontrolle über Format, Größe und Startnummer.",
+      "positionLabel": "Position",
+      "position": {
+        "bottom-center": "Unten mittig",
+        "bottom-right": "Unten rechts",
+        "bottom-left": "Unten links",
+        "top-center": "Oben mittig",
+        "top-right": "Oben rechts",
+        "top-left": "Oben links"
+      },
+      "formatLabel": "Format",
+      "format": {
+        "plain": "1",
+        "ofTotal": "1 / 10",
+        "pageOfTotal": "Seite 1 von 10"
+      },
+      "sizeLabel": "Schriftgröße",
+      "marginLabel": "Randabstand",
+      "marginHint": "Abstand zum Seitenrand.",
+      "startLabel": "Nummerierung beginnt bei",
+      "colorLabel": "Farbe",
+      "skipFirstLabel": "Erste Seite nicht nummerieren",
+      "action": "Seitenzahlen hinzufügen",
+      "word": {
+        "page": "Seite",
+        "of": "von"
+      }
+    },
+    "protect": {
+      "short": "Schützen",
+      "title": "Passwortschutz",
+      "description": "Ein PDF mit Passwort und Berechtigungen verschlüsseln — oder ein bestehendes Passwort entfernen.",
+      "modeLabel": "Modus",
+      "mode": {
+        "protect": "Passwort setzen",
+        "remove": "Passwort entfernen"
+      },
+      "alreadyEncrypted": "Dieses PDF ist bereits passwortgeschützt. Wechseln Sie zuerst zu „Passwort entfernen“.",
+      "userPasswordLabel": "Passwort",
+      "userPasswordHint": "Wird zum Öffnen des Dokuments benötigt.",
+      "confirmPasswordLabel": "Passwort wiederholen",
+      "mismatch": "Die Passwörter stimmen nicht überein.",
+      "ownerPasswordLabel": "Besitzer-Passwort (optional)",
+      "ownerPasswordHint": "Gewährt vollen Zugriff und umgeht die Berechtigungen unten. Standard ist das Passwort von oben.",
+      "permissionsLabel": "Mit dem normalen Passwort erlaubt",
+      "permission": {
+        "printing": "Drucken",
+        "modifying": "Inhalt bearbeiten",
+        "copying": "Text und Bilder kopieren",
+        "annotating": "Kommentare und Formulareingaben"
+      },
+      "permissionsHint": "Berechtigungen sind Teil des PDF-Standards, ihre Durchsetzung liegt jedoch beim jeweiligen Programm. Sie ersetzen das Passwort selbst nicht.",
+      "currentPasswordLabel": "Aktuelles Passwort",
+      "currentPasswordHint": "Das Passwort, mit dem sich das Dokument derzeit öffnen lässt.",
+      "action": "PDF schützen",
+      "actionRemove": "Passwort entfernen"
+    }
+  },
+  "footer": {
+    "privacyClaim": "Die gesamte Verarbeitung findet im Browser statt. Keine Uploads.",
+    "legal": "Rechtliches",
+    "privacy": "Datenschutz",
+    "imprint": "Impressum"
+  },
+  "privacy": {
+    "title": "Datenschutzerklärung",
+    "intro": "Wie diese Website mit Ihren Daten umgeht.",
+    "sections": {
+      "0": {
+        "heading": "Ihre PDF-Dateien",
+        "body": "PDF-Dateien, die Sie mit diesem Werkzeug öffnen, werden vollständig in Ihrem Browser verarbeitet. Sie werden nicht hochgeladen, nicht an einen Server übertragen, nicht zwischengespeichert und nicht gespeichert. Beim Schließen oder Neuladen der Seite verschwinden sie aus dem Arbeitsspeicher. An keiner anderen Stelle existiert eine Kopie."
+      },
+      "1": {
+        "heading": "Spracheinstellung",
+        "body": "Ihre Sprache wird aus dem Accept-Language-Header Ihres Browsers erkannt. Wenn Sie die Sprache manuell umstellen, wird diese Wahl in einem NEXT_LOCALE-Cookie gespeichert, damit die Seite sie beim nächsten Besuch übernimmt. Dieses Cookie enthält ausschließlich das Sprachkürzel."
+      },
+      "2": {
+        "heading": "Server-Logs",
+        "body": "[TODO: Zugriffsprotokoll des Webservers beschreiben — welche Felder gespeichert werden, Speicherdauer, Rechtsgrundlage nach Art. 6 Abs. 1 lit. f DSGVO.]"
+      },
+      "3": {
+        "heading": "Werbung",
+        "body": "[TODO: Werbenetzwerk benennen, verarbeitete Daten, Rechtsgrundlage und Einwilligungsmechanismus ergänzen, sobald das Netzwerk aus Spezifikation Abschnitt 5.4 feststeht.]"
+      },
+      "4": {
+        "heading": "Verantwortlicher und Ihre Rechte",
+        "body": "[TODO: Name und Anschrift des Verantwortlichen, Kontakt für Datenschutzanfragen sowie der Standardhinweis auf die Betroffenenrechte (Art. 15-21 DSGVO) einschließlich Beschwerderecht bei einer Aufsichtsbehörde.]"
+      }
+    }
+  },
+  "imprint": {
+    "title": "Impressum",
+    "intro": "Angaben gemäß § 5 DDG.",
+    "sections": {
+      "0": {
+        "heading": "Diensteanbieter",
+        "body": "[TODO: Firmierung, Anschrift, Register und Registernummer, Umsatzsteuer-ID.]"
+      },
+      "1": {
+        "heading": "Kontakt",
+        "body": "[TODO: E-Mail-Adresse, Telefonnummer sowie inhaltlich Verantwortlicher nach § 18 Abs. 2 MStV.]"
+      }
+    }
+  }
+}

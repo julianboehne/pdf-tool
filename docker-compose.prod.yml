@@ -1,0 +1,26 @@
+services:
+  pdf-tool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pdf-tool.rule=Host(`${PDF_TOOL_HOST:?set PDF_TOOL_HOST in .env}`)"
+      - "traefik.http.routers.pdf-tool.entrypoints=websecure"
+      - "traefik.http.routers.pdf-tool.tls=true"
+      - "traefik.http.routers.pdf-tool.tls.certresolver=letsencrypt"
+      - "traefik.http.services.pdf-tool.loadbalancer.server.port=3000"
+      # HTTP → HTTPS redirect
+      - "traefik.http.routers.pdf-tool-http.rule=Host(`${PDF_TOOL_HOST}`)"
+      - "traefik.http.routers.pdf-tool-http.entrypoints=web"
+      - "traefik.http.routers.pdf-tool-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+networks:
+  traefik-public:
+    external: true # must already exist in the Traefik setup
